@@ -1,4 +1,3 @@
-// LegsTree.jsx – Compact with popup and prereq logic
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlow, {
   Background,
@@ -8,22 +7,25 @@ import ReactFlow, {
   useEdgesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { useSkillStore } from "../Stores/SkillStore"; // ✅
 
 const legSkills = [
-  { id: "wallSit", label: "🧱", fullLabel: "Wall Sit (30s)", position: { x: -120, y: 500 }, xp: 2 },
-  { id: "bodyweightSquat", label: "🏋️", fullLabel: "Bodyweight Squats (2x10)", requires: ["wallSit"], position: { x: -120, y: 400 }, xp: 2 },
-  { id: "stepUps", label: "🪜", fullLabel: "Step-Ups (2x6 each leg)", requires: ["bodyweightSquat"], position: { x: -120, y: 300 }, xp: 3 },
-  { id: "shrimpSquat", label: "🦐", fullLabel: "Shrimp Squat (2x3)", requires: ["stepUps"], position: { x: -120, y: 200 }, xp: 5 },
-
-  { id: "jumpSquat", label: "⚡", fullLabel: "Jump Squats (2x6)", requires: ["bodyweightSquat"], position: { x: 0, y: 400 }, xp: 3 },
-  { id: "broadJump", label: "🏃", fullLabel: "Broad Jump (2x3)", requires: ["jumpSquat"], position: { x: 0, y: 300 }, xp: 4 },
-
-  { id: "pistolSquat", label: "🦵", fullLabel: "Pistol Squat (1x1 each leg)", requires: ["shrimpSquat"], position: { x: -60, y: 100 }, xp: 6 },
-  { id: "dragonSquat", label: "🐉", fullLabel: "Dragon Squat (1x1 each leg)", requires: ["shrimpSquat", "broadJump"], position: { x: 60, y: 100 }, xp: 8 },
+  { id: "gluteBridge", label: "🌉", fullLabel: "Glute Bridge (2x12)", position: { x: -100, y: 500 }, xp: 2 },
+  { id: "wallSit", label: "🧱", fullLabel: "Wall Sit (2x30s)", position: { x: 0, y: 500 }, xp: 2 },
+  { id: "stepUps", label: "🪜", fullLabel: "Step-Ups (2x10)", requires: ["gluteBridge"], position: { x: -100, y: 400 }, xp: 3 },
+  { id: "lunges", label: "🦵", fullLabel: "Lunges (2x8)", requires: ["stepUps"], position: { x: -100, y: 300 }, xp: 4 },
+  { id: "shrimpSquat", label: "🦐", fullLabel: "Shrimp Squat (2x5)", requires: ["lunges"], position: { x: -100, y: 200 }, xp: 6 },
+  { id: "pistolSquat", label: "🔫", fullLabel: "Pistol Squat (2x3)", requires: ["shrimpSquat"], position: { x: -100, y: 100 }, xp: 8 },
+  { id: "wallSitPulse", label: "🔁", fullLabel: "Wall Sit Pulses (2x10)", requires: ["wallSit"], position: { x: 0, y: 400 }, xp: 3 },
+  { id: "splitSquat", label: "🪞", fullLabel: "Split Squat (2x8)", requires: ["wallSitPulse"], position: { x: 0, y: 300 }, xp: 5 },
+  { id: "jumpLunge", label: "🦘", fullLabel: "Jump Lunge (2x6)", requires: ["splitSquat"], position: { x: 0, y: 200 }, xp: 7 },
 ];
 
-export default function LegsTree({ addXp }) {
-  const [unlocked, setUnlocked] = useState([]);
+export default function LegsTree() {
+  const unlocked = useSkillStore((state) => state.unlockedSkills.legs);
+  const unlockSkill = useSkillStore((state) => state.unlockSkill);
+  const resetAll = useSkillStore((state) => state.resetAll);
+
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
@@ -68,10 +70,10 @@ export default function LegsTree({ addXp }) {
   };
 
   useEffect(() => {
-    const { nodes, edges } = generateFlowData(legSkills, []);
+    const { nodes, edges } = generateFlowData(legSkills, unlocked);
     setNodes(nodes);
     setEdges(edges);
-  }, []);
+  }, [unlocked]);
 
   const onInit = (instance) => {
     if (!initialized.current) {
@@ -88,38 +90,57 @@ export default function LegsTree({ addXp }) {
     setTimeout(() => setTooltip(null), 2000);
 
     const prereqs = skill.requires || [];
-    const unmet = prereqs.filter((r) => !unlocked.includes(r));
-    if (unmet.length > 0) {
-      const unmetNames = unmet.map((id) => {
-        const prereq = legSkills.find((s) => s.id === id);
-        return prereq ? prereq.fullLabel : id;
+    const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
+
+    // Case 2: If prerequisites are locked
+    if (lockedPrereqs.length > 0) {
+      const names = lockedPrereqs.map((id) => {
+        const s = legSkills.find((s) => s.id === id);
+        return s?.fullLabel.replace(/\s*\([^)]*\)/, "") || id;
       });
-      alert(`To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${unmetNames.join("\n")}`);
+      const currentSkillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
+      alert(`To unlock "${currentSkillName}", you must first unlock:\n\n${names.join("\n")}`);
       return;
     }
 
+    // Case 1: Prereqs unlocked → ask if user can meet the requirement
+    const fullNames = prereqs.map((id) => {
+      const s = legSkills.find((s) => s.id === id);
+      return s?.fullLabel || id;
+    });
+
+    const confirmPrereqs = confirm(
+      `To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${fullNames.join(
+        "\n"
+      )}\n\nCan you do all of these?`
+    );
+
+    if (!confirmPrereqs) return;
+
     if (unlocked.includes(skill.id)) return;
 
-    const skillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
-    const prereqId = (skill.requires && skill.requires[0]) || null;
-    const prereqSkill = prereqId ? legSkills.find((s) => s.id === prereqId) : null;
-    const prereqFull = prereqSkill ? prereqSkill.fullLabel : "a prerequisite skill";
-
-    const confirmed = confirm(`To unlock "${skillName}", you must be able to do:\n\n${prereqFull}.\n\nProceed?`);
-    if (confirmed) {
-      const updated = [...unlocked, skill.id];
-      setUnlocked(updated);
-      addXp(skill.xp || 5);
-
-      const flow = generateFlowData(legSkills, updated);
-      setNodes(flow.nodes);
-      setEdges(flow.edges);
-    }
-  }, [unlocked]);
+    unlockSkill("legs", skill.id, skill.xp || 5);
+  }, [unlocked, unlockSkill]);
 
   return (
     <ReactFlowProvider>
       <div style={{ width: "100%", height: "100%", background: "#000", position: "relative" }}>
+        <button
+          onClick={resetAll}
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            zIndex: 1000,
+            background: "#ef4444",
+            color: "white",
+            border: "none",
+            padding: "6px 12px",
+            borderRadius: 6,
+          }}
+        >
+          Reset Tree
+        </button>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -138,18 +159,20 @@ export default function LegsTree({ addXp }) {
           <Background color="#1e1e1e" gap={16} />
         </ReactFlow>
         {tooltip && (
-          <div style={{
-            position: "absolute",
-            bottom: 80,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "#222",
-            color: "white",
-            padding: "10px 16px",
-            borderRadius: 8,
-            fontSize: 14,
-            zIndex: 1000,
-          }}>
+          <div
+            style={{
+              position: "absolute",
+              bottom: 80,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "#222",
+              color: "white",
+              padding: "10px 16px",
+              borderRadius: 8,
+              fontSize: 14,
+              zIndex: 1000,
+            }}
+          >
             {tooltip}
           </div>
         )}

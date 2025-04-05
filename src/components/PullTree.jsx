@@ -1,4 +1,3 @@
-// PullTree.jsx – Compact with popup and cleaned unlock logic
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlow, {
   Background,
@@ -8,25 +7,33 @@ import ReactFlow, {
   useEdgesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { useSkillStore } from "../stores/SkillStore";
+import { MoveVertical } from "lucide-react"; // ✅ Pull-Up icon
 
 const pullSkills = [
   { id: "deadHang", label: "🪢", fullLabel: "Dead Hang (30s)", position: { x: -120, y: 500 }, xp: 2 },
   { id: "scapularPulls", label: "⬇️", fullLabel: "Scapular Pulls (2x6)", requires: ["deadHang"], position: { x: -120, y: 400 }, xp: 2 },
   { id: "negativePullups", label: "🔻", fullLabel: "Negative Pull-Ups (2x5)", requires: ["scapularPulls"], position: { x: -120, y: 300 }, xp: 3 },
-  { id: "pullups", label: "🧗", fullLabel: "Pull-Ups (2x5)", requires: ["negativePullups"], position: { x: -120, y: 200 }, xp: 4 },
-
+  {
+    id: "pullups",
+    label: <MoveVertical size={28} strokeWidth={2} color="white" />, // ✅ Lucide icon here
+    fullLabel: "Pull-Ups (2x5)",
+    requires: ["negativePullups"],
+    position: { x: -120, y: 200 },
+    xp: 4
+  },
   { id: "archer", label: "🏹", fullLabel: "Archer Pull-Ups (2x3)", requires: ["pullups"], position: { x: -60, y: 100 }, xp: 6 },
   { id: "typewriter", label: "↔️", fullLabel: "Typewriter Pull-Ups (2x3)", requires: ["archer"], position: { x: -60, y: 0 }, xp: 7 },
-
   { id: "oneArmHold", label: "🖐️", fullLabel: "One-Arm Hold (10s)", requires: ["typewriter"], position: { x: 0, y: -80 }, xp: 8 },
   { id: "oneArmPull", label: "💪", fullLabel: "One-Arm Pull-Up (1x1)", requires: ["oneArmHold"], position: { x: 0, y: -160 }, xp: 10 },
-
   { id: "explosivePullups", label: "⚡", fullLabel: "Explosive Pull-Ups (2x3)", requires: ["pullups"], position: { x: 60, y: 100 }, xp: 5 },
   { id: "muscleup", label: "🚀", fullLabel: "Muscle-Up (1x1)", requires: ["explosivePullups", "typewriter"], position: { x: 0, y: -240 }, xp: 12 },
 ];
 
-export default function PullTree({ addXp }) {
-  const [unlocked, setUnlocked] = useState([]);
+export default function PullTree() {
+  const unlocked = useSkillStore((state) => state.unlockedSkills.pull);
+  const unlockSkill = useSkillStore((state) => state.unlockSkill);
+
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
@@ -71,10 +78,10 @@ export default function PullTree({ addXp }) {
   };
 
   useEffect(() => {
-    const { nodes, edges } = generateFlowData(pullSkills, []);
+    const { nodes, edges } = generateFlowData(pullSkills, unlocked);
     setNodes(nodes);
     setEdges(edges);
-  }, []);
+  }, [unlocked]);
 
   const onInit = (instance) => {
     if (!initialized.current) {
@@ -91,34 +98,34 @@ export default function PullTree({ addXp }) {
     setTimeout(() => setTooltip(null), 2000);
 
     const prereqs = skill.requires || [];
-    const unmet = prereqs.filter((r) => !unlocked.includes(r));
-    if (unmet.length > 0) {
-      const unmetNames = unmet.map((id) => {
-        const prereq = pullSkills.find((s) => s.id === id);
-        return prereq ? prereq.fullLabel : id;
+
+    const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
+    if (lockedPrereqs.length > 0) {
+      const names = lockedPrereqs.map((id) => {
+        const s = pullSkills.find((s) => s.id === id);
+        return s?.fullLabel?.split("(")[0].trim() || id;
       });
-      alert(`To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${unmetNames.join("\n")}`);
+      alert(`You must unlock the following first:\n\n${names.join("\n")}`);
       return;
     }
 
+    const fullNames = prereqs.map((id) => {
+      const s = pullSkills.find((s) => s.id === id);
+      return s?.fullLabel || id;
+    });
+
+    const confirmPrereqs = confirm(
+      `To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${fullNames.join(
+        "\n"
+      )}\n\nCan you do all of these?`
+    );
+
+    if (!confirmPrereqs) return;
+
     if (unlocked.includes(skill.id)) return;
 
-    const skillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
-    const prereqId = (skill.requires && skill.requires[0]) || null;
-    const prereqSkill = prereqId ? pullSkills.find((s) => s.id === prereqId) : null;
-    const prereqFull = prereqSkill ? prereqSkill.fullLabel : "a prerequisite skill";
-
-    const confirmed = confirm(`To unlock "${skillName}", you must be able to do:\n\n${prereqFull}.\n\nProceed?`);
-    if (confirmed) {
-      const updated = [...unlocked, skill.id];
-      setUnlocked(updated);
-      addXp(skill.xp || 5);
-
-      const flow = generateFlowData(pullSkills, updated);
-      setNodes(flow.nodes);
-      setEdges(flow.edges);
-    }
-  }, [unlocked]);
+    unlockSkill("pull", skill.id, skill.xp || 5);
+  }, [unlocked, unlockSkill]);
 
   return (
     <ReactFlowProvider>
