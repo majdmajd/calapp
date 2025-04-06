@@ -1,14 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlow, {
-  Background,
   Controls,
   ReactFlowProvider,
   useNodesState,
   useEdgesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useSkillStore } from "../stores/SkillStore";
-import { MoveVertical } from "lucide-react"; // ✅ Pull-Up icon
+import { useSkillStore } from "../Stores/SkillStore";
+import { MoveVertical } from "lucide-react";
 
 const pullSkills = [
   { id: "deadHang", label: "🪢", fullLabel: "Dead Hang (30s)", position: { x: -120, y: 500 }, xp: 2 },
@@ -16,7 +15,7 @@ const pullSkills = [
   { id: "negativePullups", label: "🔻", fullLabel: "Negative Pull-Ups (2x5)", requires: ["scapularPulls"], position: { x: -120, y: 300 }, xp: 3 },
   {
     id: "pullups",
-    label: <MoveVertical size={28} strokeWidth={2} color="white" />, // ✅ Lucide icon here
+    label: <MoveVertical size={28} strokeWidth={2} color="white" />,
     fullLabel: "Pull-Ups (2x5)",
     requires: ["negativePullups"],
     position: { x: -120, y: 200 },
@@ -33,11 +32,14 @@ const pullSkills = [
 export default function PullTree() {
   const unlocked = useSkillStore((state) => state.unlockedSkills.pull);
   const unlockSkill = useSkillStore((state) => state.unlockSkill);
+  const resetAll = useSkillStore((state) => state.resetAll);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
   const initialized = useRef(false);
+
+  const category = "pull";
 
   const generateFlowData = (skills, unlockedList) => {
     const nodes = skills.map((skill) => ({
@@ -47,8 +49,8 @@ export default function PullTree() {
       draggable: false,
       data: { label: skill.label },
       style: {
-        border: unlockedList.includes(skill.id) ? "2px solid #22c55e" : "2px solid #ffffff",
-        background: unlockedList.includes(skill.id) ? "#3b82f6" : "#444",
+        border: "2px solid #ffffff",
+        background: unlockedList.includes(skill.id) ? "#3b82f6" : "#222",
         color: "white",
         padding: 6,
         borderRadius: 10,
@@ -59,6 +61,11 @@ export default function PullTree() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        boxShadow: unlockedList.includes(skill.id)
+          ? "0 0 6px 1px rgba(255, 255, 255, 0.6)"
+          : "0 0 2px 1px #222",
+        transition: "all 0.3s ease",
+        cursor: "pointer",
       },
     }));
 
@@ -94,21 +101,28 @@ export default function PullTree() {
     const skill = pullSkills.find((s) => s.id === node.id);
     if (!skill) return;
 
-    setTooltip(skill.fullLabel);
-    setTimeout(() => setTooltip(null), 2000);
-
-    const prereqs = skill.requires || [];
-
-    const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
-    if (lockedPrereqs.length > 0) {
-      const names = lockedPrereqs.map((id) => {
-        const s = pullSkills.find((s) => s.id === id);
-        return s?.fullLabel?.split("(")[0].trim() || id;
-      });
-      alert(`You must unlock the following first:\n\n${names.join("\n")}`);
+    // CASE 0: Already unlocked → show tooltip only
+    if (unlocked.includes(skill.id)) {
+      setTooltip(skill.fullLabel);
+      setTimeout(() => setTooltip(null), 2000);
       return;
     }
 
+    // CASE 1: Prerequisites not yet unlocked → show missing names
+    const prereqs = skill.requires || [];
+    const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
+
+    if (lockedPrereqs.length > 0) {
+      const names = lockedPrereqs.map((id) => {
+        const s = pullSkills.find((s) => s.id === id);
+        return s?.fullLabel.replace(/\s*\([^)]*\)/, "") || id;
+      });
+      const currentSkillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
+      alert(`To unlock "${currentSkillName}", you must first unlock:\n\n${names.join("\n")}`);
+      return;
+    }
+
+    // CASE 2: All prereqs unlocked → ask for rep/set confirmation
     const fullNames = prereqs.map((id) => {
       const s = pullSkills.find((s) => s.id === id);
       return s?.fullLabel || id;
@@ -122,14 +136,29 @@ export default function PullTree() {
 
     if (!confirmPrereqs) return;
 
-    if (unlocked.includes(skill.id)) return;
-
-    unlockSkill("pull", skill.id, skill.xp || 5);
+    unlockSkill(category, skill.id, skill.xp || 5);
   }, [unlocked, unlockSkill]);
 
   return (
     <ReactFlowProvider>
       <div style={{ width: "100%", height: "100%", background: "#000", position: "relative" }}>
+        <button
+          onClick={resetAll}
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            zIndex: 1000,
+            background: "#ef4444",
+            color: "white",
+            border: "none",
+            padding: "6px 12px",
+            borderRadius: 6,
+          }}
+        >
+          Reset Tree
+        </button>
+
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -145,21 +174,24 @@ export default function PullTree() {
           fitView
         >
           <Controls position="bottom-left" />
-          <Background color="#1e1e1e" gap={16} />
         </ReactFlow>
+
         {tooltip && (
-          <div style={{
-            position: "absolute",
-            bottom: 80,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "#222",
-            color: "white",
-            padding: "10px 16px",
-            borderRadius: 8,
-            fontSize: 14,
-            zIndex: 1000,
-          }}>
+          <div
+            style={{
+              position: "absolute",
+              bottom: 80,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "#222",
+              color: "white",
+              padding: "10px 16px",
+              borderRadius: 8,
+              fontSize: 14,
+              zIndex: 1000,
+              boxShadow: "0 0 8px #000",
+            }}
+          >
             {tooltip}
           </div>
         )}

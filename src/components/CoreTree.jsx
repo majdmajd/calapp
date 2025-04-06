@@ -1,25 +1,22 @@
+// CoreTree.jsx
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlow, {
-  Background,
   Controls,
   ReactFlowProvider,
   useNodesState,
   useEdgesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useSkillStore } from "../Stores/SkillStore"; // ✅
-
+import { useSkillStore } from "../Stores/SkillStore";
 
 const coreSkills = [
   { id: "deadBug", label: "🐞", fullLabel: "Dead Bug (2x20s)", position: { x: -120, y: 500 }, xp: 2 },
   { id: "hollowHold", label: "🫢", fullLabel: "Hollow Hold (2x20s)", requires: ["deadBug"], position: { x: -120, y: 400 }, xp: 3 },
   { id: "hollowRocks", label: "🌊", fullLabel: "Hollow Rocks (2x10)", requires: ["hollowHold"], position: { x: -120, y: 300 }, xp: 4 },
-
   { id: "lyingLegRaises", label: "🦵", fullLabel: "Lying Leg Raises (2x10)", position: { x: 0, y: 500 }, xp: 2 },
   { id: "hangingKneeRaises", label: "🦿", fullLabel: "Hanging Knee Raises (2x5)", requires: ["lyingLegRaises"], position: { x: 0, y: 400 }, xp: 3 },
   { id: "hangingLegRaises", label: "🦖", fullLabel: "Hanging Leg Raises (2x5)", requires: ["hangingKneeRaises"], position: { x: 0, y: 300 }, xp: 5 },
   { id: "lSit", label: "🪑", fullLabel: "L-Sit (10s)", requires: ["hangingLegRaises"], position: { x: 0, y: 200 }, xp: 6 },
-
   { id: "vUps", label: "✅", fullLabel: "V-Ups (2x8)", requires: ["hollowRocks"], position: { x: -60, y: 200 }, xp: 4 },
   { id: "vToL", label: "📐", fullLabel: "V to L Transition (2x3)", requires: ["vUps", "lSit"], position: { x: -30, y: 100 }, xp: 8 },
 ];
@@ -33,8 +30,6 @@ export default function CoreTree() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
   const initialized = useRef(false);
-
-  const skills = coreSkills;
   const category = "core";
 
   const generateFlowData = (skills, unlockedList) => {
@@ -45,8 +40,8 @@ export default function CoreTree() {
       draggable: false,
       data: { label: skill.label },
       style: {
-        border: unlockedList.includes(skill.id) ? "2px solid #22c55e" : "2px solid #ffffff",
-        background: unlockedList.includes(skill.id) ? "#3b82f6" : "#444",
+        border: "2px solid #ffffff",
+        background: unlockedList.includes(skill.id) ? "#3b82f6" : "#222",
         color: "white",
         padding: 6,
         borderRadius: 10,
@@ -57,6 +52,11 @@ export default function CoreTree() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        boxShadow: unlockedList.includes(skill.id)
+          ? "0 0 6px 1px rgba(255, 255, 255, 0.6)"
+          : "0 0 2px 1px #222",
+        transition: "all 0.3s ease",
+        cursor: "pointer",
       },
     }));
 
@@ -76,7 +76,7 @@ export default function CoreTree() {
   };
 
   useEffect(() => {
-    const { nodes, edges } = generateFlowData(skills, unlocked);
+    const { nodes, edges } = generateFlowData(coreSkills, unlocked);
     setNodes(nodes);
     setEdges(edges);
   }, [unlocked]);
@@ -89,19 +89,21 @@ export default function CoreTree() {
   };
 
   const onNodeClick = useCallback((_, node) => {
-    const skill = skills.find((s) => s.id === node.id);
+    const skill = coreSkills.find((s) => s.id === node.id);
     if (!skill) return;
 
-    setTooltip(skill.fullLabel);
-    setTimeout(() => setTooltip(null), 2000);
+    if (unlocked.includes(skill.id)) {
+      setTooltip(skill.fullLabel);
+      setTimeout(() => setTooltip(null), 2000);
+      return;
+    }
 
     const prereqs = skill.requires || [];
     const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
 
-    // CASE 2: Block if any prerequisites are locked
     if (lockedPrereqs.length > 0) {
       const names = lockedPrereqs.map((id) => {
-        const s = skills.find((s) => s.id === id);
+        const s = coreSkills.find((s) => s.id === id);
         return s?.fullLabel.replace(/\s*\([^)]*\)/, "") || id;
       });
       const currentSkillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
@@ -109,9 +111,8 @@ export default function CoreTree() {
       return;
     }
 
-    // CASE 1: All prerequisites unlocked, ask for reps/sets confirmation
     const fullNames = prereqs.map((id) => {
-      const s = skills.find((s) => s.id === id);
+      const s = coreSkills.find((s) => s.id === id);
       return s?.fullLabel || id;
     });
 
@@ -122,9 +123,6 @@ export default function CoreTree() {
     );
 
     if (!confirmPrereqs) return;
-
-    if (unlocked.includes(skill.id)) return;
-
     unlockSkill(category, skill.id, skill.xp || 5);
   }, [unlocked, unlockSkill]);
 
@@ -162,7 +160,6 @@ export default function CoreTree() {
           fitView
         >
           <Controls position="bottom-left" />
-          <Background color="#1e1e1e" gap={16} />
         </ReactFlow>
         {tooltip && (
           <div
@@ -177,6 +174,7 @@ export default function CoreTree() {
               borderRadius: 8,
               fontSize: 14,
               zIndex: 1000,
+              boxShadow: "0 0 8px #000",
             }}
           >
             {tooltip}

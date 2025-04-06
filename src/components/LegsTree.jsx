@@ -1,13 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlow, {
-  Background,
   Controls,
   ReactFlowProvider,
   useNodesState,
   useEdgesState,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useSkillStore } from "../Stores/SkillStore"; // ✅
+import { useSkillStore } from "../Stores/SkillStore";
 
 const legSkills = [
   { id: "gluteBridge", label: "🌉", fullLabel: "Glute Bridge (2x12)", position: { x: -100, y: 500 }, xp: 2 },
@@ -30,6 +29,7 @@ export default function LegsTree() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
   const initialized = useRef(false);
+  const category = "legs";
 
   const generateFlowData = (skills, unlockedList) => {
     const nodes = skills.map((skill) => ({
@@ -39,8 +39,8 @@ export default function LegsTree() {
       draggable: false,
       data: { label: skill.label },
       style: {
-        border: unlockedList.includes(skill.id) ? "2px solid #22c55e" : "2px solid #ffffff",
-        background: unlockedList.includes(skill.id) ? "#3b82f6" : "#444",
+        border: "2px solid #ffffff",
+        background: unlockedList.includes(skill.id) ? "#3b82f6" : "#222",
         color: "white",
         padding: 6,
         borderRadius: 10,
@@ -51,6 +51,11 @@ export default function LegsTree() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        boxShadow: unlockedList.includes(skill.id)
+          ? "0 0 6px 1px rgba(255, 255, 255, 0.6)"
+          : "0 0 2px 1px #222",
+        transition: "all 0.3s ease",
+        cursor: "pointer",
       },
     }));
 
@@ -86,13 +91,15 @@ export default function LegsTree() {
     const skill = legSkills.find((s) => s.id === node.id);
     if (!skill) return;
 
-    setTooltip(skill.fullLabel);
-    setTimeout(() => setTooltip(null), 2000);
+    if (unlocked.includes(skill.id)) {
+      setTooltip(skill.fullLabel);
+      setTimeout(() => setTooltip(null), 2000);
+      return;
+    }
 
     const prereqs = skill.requires || [];
     const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
 
-    // Case 2: If prerequisites are locked
     if (lockedPrereqs.length > 0) {
       const names = lockedPrereqs.map((id) => {
         const s = legSkills.find((s) => s.id === id);
@@ -103,7 +110,6 @@ export default function LegsTree() {
       return;
     }
 
-    // Case 1: Prereqs unlocked → ask if user can meet the requirement
     const fullNames = prereqs.map((id) => {
       const s = legSkills.find((s) => s.id === id);
       return s?.fullLabel || id;
@@ -117,9 +123,7 @@ export default function LegsTree() {
 
     if (!confirmPrereqs) return;
 
-    if (unlocked.includes(skill.id)) return;
-
-    unlockSkill("legs", skill.id, skill.xp || 5);
+    unlockSkill(category, skill.id, skill.xp || 5);
   }, [unlocked, unlockSkill]);
 
   return (
@@ -156,7 +160,6 @@ export default function LegsTree() {
           fitView
         >
           <Controls position="bottom-left" />
-          <Background color="#1e1e1e" gap={16} />
         </ReactFlow>
         {tooltip && (
           <div
@@ -171,6 +174,7 @@ export default function LegsTree() {
               borderRadius: 8,
               fontSize: 14,
               zIndex: 1000,
+              boxShadow: "0 0 8px #000",
             }}
           >
             {tooltip}
