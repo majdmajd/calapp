@@ -4,30 +4,50 @@ import ReactFlow, {
   ReactFlowProvider,
   useNodesState,
   useEdgesState,
+  Background,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useSkillStore } from "../Stores/SkillStore";
+import dagre from "dagre";
+
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+dagreGraph.setGraph({ rankdir: "BT", nodesep: 60, ranksep: 80 });
 
 const pushSkills = [
-  { id: "kneePushups", label: "🦵", fullLabel: "Knee Push-Ups (2x8)", position: { x: -120, y: 500 }, xp: 2 },
-  { id: "inclinePushups", label: "📀", fullLabel: "Incline Push-Ups (2x8)", requires: ["kneePushups"], position: { x: -120, y: 400 }, xp: 3 },
-  { id: "pushups", label: "🡜", fullLabel: "Push-Ups (2x8)", requires: ["inclinePushups"], position: { x: -120, y: 300 }, xp: 4 },
-  { id: "archerPushups", label: "🌽", fullLabel: "Archer Push-Ups (2x6)", requires: ["pushups"], position: { x: -120, y: 200 }, xp: 6 },
+  // 🔹 Beginner path
+  { id: "kneePushups", label: "🦵", fullLabel: "Knee Push-Ups (2x8)", xp: 2 },
+  { id: "inclinePushups", label: "📀", fullLabel: "Incline Push-Ups (2x8)", requires: ["kneePushups"], xp: 3 },
+  { id: "pushups", label: "🡜", fullLabel: "Push-Ups (2x8)", requires: ["inclinePushups"], xp: 4 },
 
-  { id: "benchDips", label: "🪑", fullLabel: "Bench Dips (2x10)", position: { x: 0, y: 500 }, xp: 2 },
-  { id: "straightBarDips", label: "➖", fullLabel: "Straight Bar Dips (2x6)", requires: ["benchDips"], position: { x: 0, y: 400 }, xp: 4 },
-  { id: "koreanDips", label: "🇰🇷", fullLabel: "Korean Dips (2x5)", requires: ["straightBarDips"], position: { x: 0, y: 300 }, xp: 6 },
-  { id: "ringDips", label: "💍", fullLabel: "Ring Dips (2x4)", requires: ["koreanDips"], position: { x: 0, y: 200 }, xp: 7 },
-  { id: "weightedDips", label: "🏋️", fullLabel: "Weighted Dips (2x3)", requires: ["ringDips"], position: { x: 0, y: 100 }, xp: 9 },
+  // 🔴 Chest
+  { id: "archerPushups", label: "🌽", fullLabel: "Archer Push-Ups (2x6)", requires: ["pushups"], xp: 6 },
+  { id: "oneArmPushups", label: "👐", fullLabel: "One-Arm Push-Ups (2x3)", requires: ["archerPushups"], xp: 8 },
+  { id: "ninetyPushup", label: "🔏", fullLabel: "90° Push-Up (2x2)", requires: ["oneArmPushups"], xp: 12 },
 
-  { id: "wallPike", label: "🪡", fullLabel: "Wall Pike PU (2x6)", position: { x: 120, y: 500 }, xp: 2 },
-  { id: "pike", label: "🔺", fullLabel: "Pike Push-Ups (2x6)", requires: ["wallPike"], position: { x: 120, y: 400 }, xp: 3 },
-  { id: "elevatedPike", label: "📦", fullLabel: "Elevated Pike PU (2x5)", requires: ["pike"], position: { x: 120, y: 300 }, xp: 5 },
-  { id: "wallHandstand", label: "🧙‍♂️", fullLabel: "Wall HSPU (2x3)", requires: ["elevatedPike", "ringDips"], position: { x: 120, y: 200 }, xp: 7 },
+  // 🟠 Triceps
+  { id: "benchDips", label: "🪑", fullLabel: "Bench Dips (2x10)", requires: ["pushups"], xp: 2 },
+  { id: "straightBarDips", label: "➖", fullLabel: "Straight Bar Dips (2x6)", requires: ["benchDips"], xp: 4 },
+  { id: "koreanDips", label: "🇰🇷", fullLabel: "Korean Dips (2x5)", requires: ["straightBarDips"], xp: 6 },
+  { id: "ringDips", label: "💍", fullLabel: "Ring Dips (2x4)", requires: ["koreanDips"], xp: 7 },
+  { id: "weightedDips", label: "🏋️", fullLabel: "Weighted Dips (2x3)", requires: ["ringDips"], xp: 9 },
 
-  { id: "oneArmPushups", label: "👐", fullLabel: "One-Arm Push-Ups (2x3)", requires: ["archerPushups", "weightedDips"], position: { x: -60, y: 50 }, xp: 8 },
-  { id: "freestanding", label: "🤸", fullLabel: "Freestanding HSPU (1–3)", requires: ["wallHandstand", "oneArmPushups"], position: { x: 60, y: 20 }, xp: 10 },
-  { id: "ninetyPushup", label: "🔏", fullLabel: "90° Push-Up (2x2)", requires: ["freestanding", "oneArmPushups"], position: { x: 0, y: -50 }, xp: 12 },
+  // 🟡 Shoulders
+  { id: "wallPike", label: "🪡", fullLabel: "Wall Pike PU (2x6)", requires: ["pushups"], xp: 2 },
+  { id: "pike", label: "🔺", fullLabel: "Pike Push-Ups (2x6)", requires: ["wallPike"], xp: 3 },
+  { id: "elevatedPike", label: "📦", fullLabel: "Elevated Pike PU (2x5)", requires: ["pike"], xp: 5 },
+  { id: "wallHandstand", label: "🧙‍♂️", fullLabel: "Wall HSPU (2x3)", requires: ["elevatedPike"], xp: 7 },
+  { id: "freestanding", label: "🤸", fullLabel: "Freestanding HSPU (1–3)", requires: ["wallHandstand"], xp: 10 },
+
+  // 🟢 Explosive
+  { id: "clappingPushups", label: "👏", fullLabel: "Clapping Push-Ups (2x5)", requires: ["pushups"], xp: 5 },
+
+  // 🔵 Planche (Isometric)
+  { id: "plancheLean", label: "🫳", fullLabel: "Planche Lean (20s)", requires: ["pushups"], xp: 3 },
+  { id: "tuckPlanche", label: "🥚", fullLabel: "Tuck Planche (10s)", requires: ["plancheLean"], xp: 5 },
+  { id: "advTuckPlanche", label: "🐣", fullLabel: "Advanced Tuck Planche (10s)", requires: ["tuckPlanche"], xp: 6 },
+  { id: "straddlePlanche", label: "🪂", fullLabel: "Straddle Planche (10s)", requires: ["advTuckPlanche"], xp: 8 },
+  { id: "fullPlanche", label: "🦅", fullLabel: "Full Planche (10s)", requires: ["straddlePlanche"], xp: 10 },
 ];
 
 export default function PushTree() {
@@ -42,32 +62,53 @@ export default function PushTree() {
   const category = "push";
 
   const generateFlowData = (skills, unlockedList) => {
-    const nodes = skills.map((skill) => ({
-      id: skill.id,
-      type: "default",
-      position: skill.position,
-      draggable: false,
-      data: { label: skill.label },
-      style: {
-        border: "2px solid #ffffff",
-        background: unlockedList.includes(skill.id) ? "#3b82f6" : "#222",
-        color: "white",
-        padding: 6,
-        borderRadius: 10,
-        fontSize: 22,
-        textAlign: "center",
-        width: 48,
-        height: 48,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: unlockedList.includes(skill.id)
-          ? "0 0 6px 1px rgba(255, 255, 255, 0.6)"
-          : "0 0 2px 1px #222",
-        transition: "all 0.3s ease",
-        cursor: "pointer",
-      },
-    }));
+    dagreGraph.setGraph({ rankdir: "BT", nodesep: 60, ranksep: 80 });
+
+    skills.forEach((skill) => {
+      dagreGraph.setNode(skill.id, { width: 80, height: 80 });
+    });
+
+    skills.forEach((skill) => {
+      if (skill.requires) {
+        skill.requires.forEach((req) => {
+          dagreGraph.setEdge(req, skill.id);
+        });
+      }
+    });
+
+    dagreGraph.setNode("kneePushups", {
+      ...dagreGraph.node("kneePushups"),
+      rank: "source",
+    });
+
+    dagre.layout(dagreGraph);
+
+    const nodes = skills.map((skill) => {
+      const { x, y } = dagreGraph.node(skill.id);
+      return {
+        id: skill.id,
+        type: "default",
+        data: { label: skill.label },
+        position: { x, y },
+        draggable: false,
+        sourcePosition: "top",
+        targetPosition: "bottom",
+        style: {
+          border: unlockedList.includes(skill.id) ? "2px solid #22c55e" : "2px solid #ffffff",
+          background: unlockedList.includes(skill.id) ? "#3b82f6" : "#444",
+          color: "white",
+          padding: 6,
+          borderRadius: 10,
+          fontSize: 22,
+          textAlign: "center",
+          width: 48,
+          height: 48,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+      };
+    });
 
     const edges = skills
       .filter((skill) => skill.requires)
@@ -92,7 +133,7 @@ export default function PushTree() {
 
   const onInit = (instance) => {
     if (!initialized.current) {
-      instance.zoomTo(1);
+      setTimeout(() => instance.fitView({ padding: 0.2 }), 50);
       initialized.current = true;
     }
   };
@@ -101,11 +142,8 @@ export default function PushTree() {
     const skill = pushSkills.find((s) => s.id === node.id);
     if (!skill) return;
 
-    if (unlocked.includes(skill.id)) {
-      setTooltip(skill.fullLabel);
-      setTimeout(() => setTooltip(null), 2000);
-      return;
-    }
+    setTooltip(skill.fullLabel);
+    setTimeout(() => setTooltip(null), 2000);
 
     const prereqs = skill.requires || [];
     const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
@@ -131,7 +169,7 @@ export default function PushTree() {
       )}\n\nCan you do all of these?`
     );
 
-    if (!confirmPrereqs) return;
+    if (!confirmPrereqs || unlocked.includes(skill.id)) return;
 
     unlockSkill(category, skill.id, skill.xp || 5);
   }, [unlocked, unlockSkill]);
@@ -166,10 +204,10 @@ export default function PushTree() {
           zoomOnScroll={false}
           zoomOnDoubleClick={false}
           panOnDrag={true}
-          translateExtent={[[-10, -10000], [10, 10000]]}
-          fitView
+          translateExtent={[[-10000, -10000], [10000, 10000]]}
         >
           <Controls position="bottom-left" />
+          <Background color="#1e1e1e" gap={16} />
         </ReactFlow>
         {tooltip && (
           <div
