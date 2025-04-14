@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import ELK from 'elkjs/lib/elk.bundled.js';
 import ReactFlow, {
   Background,
   Controls,
@@ -19,15 +20,16 @@ const pullSkills = [
   { id: "scapularPulls", label: "⬇️", fullLabel: "Scapular Pulls (2x6)", requires: ["deadHang"], xp: 2 },
   { id: "negativePullups", label: "🔻", fullLabel: "Negative Pull-Ups (2x8) with a 3 second negative", requires: ["scapularPulls"], xp: 3 },
   { id: "pullups", label: "🧱", fullLabel: "Pull-Ups (3x10)", requires: ["negativePullups"], xp: 4 },
-  { id: "weightedPullups", label: "🏋️", fullLabel: "Weighted Pull-Ups (2x8)", requires: ["pullups"], requires: ["pullups",], xp: 4 },
+  { id: "weightedPullups", label: "🏋️", fullLabel: "Weighted Pull-Ups (2x8)", requires: ["pullups"], xp: 4 },
   { id: "highPullups", label: "📈", fullLabel: "High Pull-Ups (3x5 )", requires: ["weightedPullups"],xp: 5 },
   { id: "explosivePullups", label: "⚡", fullLabel: "Explosive Pull-Ups (3x3)", requires: ["highPullups"], xp: 6 },
+  { id: "bandMuscleup", label: "🌀", fullLabel: "Banded Muscle-Up (2x3)", requires: ["explosivePullups"], xp: 7 },
   { id: "modifiedMuscleup", label: "🌊", fullLabel: "Modified Muscle-Ups (3x6)", requires: ["explosivePullups"], xp: 7 },
   { id: "archer", label: "🌹", fullLabel: "Archer Pull-Ups (2x3)", requires: ["pullups"], xp: 5 },
   { id: "typewriter", label: "↔️", fullLabel: "Typewriter Pull-Ups (2x3)", requires: ["archer"], xp: 6 },
   { id: "oneArmHold", label: "🖐️", fullLabel: "One-Arm Hold (10s)", requires: ["typewriter"], xp: 7 },
   { id: "oneArmPull", label: "💪", fullLabel: "One-Arm Pull-Up (1x1)", requires: ["oneArmHold"], xp: 10 },
-  { id: "muscleup", label: "🚀", fullLabel: "Muscle-Up (1x1)", requires: ["bandMuscleup", "straightBarDips"], xp: 9 },
+  { id: "muscleup", label: "🚀", fullLabel: "Muscle-Up (1x1)", requires: ["bandMuscleup", "modifiedMuscleup"], xp: 9 },
 
 
   { id: "skinTheCat", label: "🐱", fullLabel: "Skin the Cat (2x3)", requires: ["scapularPulls"], xp: 3 },
@@ -45,7 +47,88 @@ const pullSkills = [
   { id: "fullFront", label: "🌪", fullLabel: "Full Front Lever (10s)", requires: ["straddleFront"], xp: 9 },
 ];
 
+const generateFlowData = (skills, unlockedList) => {
+  skills.forEach((skill) => {
+    dagreGraph.setNode(skill.id, { width: 80, height: 80 });
+  });
 
+  skills.forEach((skill) => {
+    if (skill.requires) {
+      skill.requires.forEach((req) => {
+        dagreGraph.setEdge(req, skill.id);
+      });
+    }
+  });
+
+  dagre.layout(dagreGraph);
+
+  const nodes = skills.map((skill) => {
+    const layoutNode = dagreGraph.node(skill.id);
+    const x = layoutNode.x;
+    const y = layoutNode.y;
+    const isUnlocked = unlockedList.includes(skill.id);
+    const isBaseSkill = !skill.requires || skill.requires.length === 0;
+    const canUnlock = !isUnlocked && skill.requires?.every((r) => unlockedList.includes(r));
+
+    let filter = "none";
+    let opacity = 1;
+    let border = "2px solid #ffffff";
+    let labelText = skill.label;
+
+    if (isUnlocked) {
+      border = "2px solid #22c55e";
+    } else if (isBaseSkill) {
+      border = "2px solid #ffffff";
+    } else if (canUnlock) {
+      border = "2px dashed #facc15";
+      opacity = 0.85;
+    } else {
+      filter = "blur(2px)";
+      opacity = 0.4;
+    }
+
+    return {
+      id: skill.id,
+      type: "default",
+      data: { label: labelText },
+      position: { x, y },
+      draggable: false,
+      sourcePosition: "top",
+      targetPosition: "bottom",
+      style: {
+        border,
+        background: isUnlocked ? "#3b82f6" : canUnlock ? "#444" : "#222",
+        color: "white",
+        padding: 6,
+        borderRadius: 10,
+        fontSize: 22,
+        textAlign: "center",
+        width: 48,
+        height: 48,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        filter,
+        opacity,
+        boxShadow: canUnlock ? "0 0 18px 4px #38bdf8" : "none",
+      },
+    };
+  });
+
+  const edges = skills
+    .filter((skill) => skill.requires)
+    .flatMap((skill) =>
+      skill.requires.map((req) => ({
+        id: `${req}->${skill.id}`,
+        source: req,
+        target: skill.id,
+        animated: false,
+        style: { stroke: "#ffffff", strokeWidth: 2 },
+      }))
+    );
+
+  return { nodes, edges };
+};
 
 export default function PullTree() {
   const unlockedSkills = useSkillStore((state) => state.unlockedSkills);
@@ -59,110 +142,12 @@ export default function PullTree() {
   const initialized = useRef(false);
   const category = "pull";
 
-  const generateFlowData = (skills, unlockedList) => {
-    dagreGraph.setGraph({ rankdir: "BT", nodesep: 60, ranksep: 80 });
-
-    skills.forEach((skill) => {
-      dagreGraph.setNode(skill.id, { width: 80, height: 80 });
-    });
-
-    skills.forEach((skill) => {
-      if (skill.requires) {
-        skill.requires.forEach((req) => {
-          dagreGraph.setEdge(req, skill.id);
-        });
-      }
-    });
-
-    dagre.layout(dagreGraph);
-
-    const reachable = new Set(unlockedList);
-
-    let newlyReachable = true;
-    while (newlyReachable) {
-      newlyReachable = false;
-      for (const skill of skills) {
-        if (!reachable.has(skill.id) && skill.requires?.every((r) => reachable.has(r))) {
-          reachable.add(skill.id);
-          newlyReachable = true;
-        }
-      }
-    }
-
-    const nodes = skills.map((skill) => {
-      const { x, y } = dagreGraph.node(skill.id);
-      const isUnlocked = unlockedList.includes(skill.id);
-      const isBaseSkill = !skill.requires || skill.requires.length === 0;
-      const canUnlock = !isUnlocked && skill.requires?.every((r) => unlockedList.includes(r));
-
-      let filter = "none";
-      let opacity = 1;
-      let border = "2px solid #ffffff";
-      let labelText = skill.label;
-      const skillPrereqsMet = skill.requires?.every((r) => unlockedList.includes(r));
-
-      if (isUnlocked) {
-        border = "2px solid #22c55e";
-      } else if (isBaseSkill) {
-        border = "2px solid #ffffff";
-      } else if (canUnlock) {
-        border = "2px dashed #facc15";
-        opacity = 0.85;
-        if (!isBaseSkill && skillPrereqsMet) {
-          // no lock icon anymore
-        }
-      } else {
-        filter = "blur(2px)";
-        opacity = 0.4;
-      }
-
-      // correct closing brace added below
-      return {
-        id: skill.id,
-        data: { label: labelText },
-        position: { x, y },
-        draggable: false,
-        sourcePosition: "top",
-        targetPosition: "bottom",
-        style: {
-          border,
-          background: isUnlocked ? "#3b82f6" : canUnlock ? "#444" : "#222",
-          color: "white",
-          padding: 6,
-          borderRadius: 10,
-          fontSize: 22,
-          textAlign: "center",
-          width: 48,
-          height: 48,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          filter,
-          opacity,
-          boxShadow: canUnlock ? "0 0 18px 4px #38bdf8" : "none",
-        },
-      };
-    });
-
-    const edges = skills
-      .filter((skill) => skill.requires)
-      .flatMap((skill) =>
-        skill.requires.map((req) => ({
-          id: `${req}->${skill.id}`,
-          source: req,
-          target: skill.id,
-          animated: false,
-          style: { stroke: "#ffffff", strokeWidth: 2 },
-        }))
-      );
-
-    return { nodes, edges };
-  };
-
   useEffect(() => {
-    const { nodes, edges } = generateFlowData(pullSkills, unlocked);
-    setNodes(nodes);
-    setEdges(edges);
+    (async () => {
+      const { nodes, edges } = generateFlowData(pullSkills, unlocked);
+      setNodes(nodes);
+      setEdges(edges);
+    })();
   }, [unlocked]);
 
   const onInit = (instance) => {
