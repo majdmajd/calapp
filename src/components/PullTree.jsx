@@ -17,16 +17,18 @@ dagreGraph.setGraph({ rankdir: "BT", nodesep: 60, ranksep: 80 });
 const pullSkills = [
   { id: "deadHang", label: "🪢", fullLabel: "Dead Hang (30s)", xp: 2 },
   { id: "scapularPulls", label: "⬇️", fullLabel: "Scapular Pulls (2x6)", requires: ["deadHang"], xp: 2 },
-  { id: "negativePullups", label: "🔻", fullLabel: "Negative Pull-Ups (2x5)", requires: ["scapularPulls"], xp: 3 },
-  { id: "pullups", label: "🧱", fullLabel: "Pull-Ups (2x5)", requires: ["negativePullups"], xp: 4 },
-
+  { id: "negativePullups", label: "🔻", fullLabel: "Negative Pull-Ups (2x8) with a 3 second negative", requires: ["scapularPulls"], xp: 3 },
+  { id: "pullups", label: "🧱", fullLabel: "Pull-Ups (3x10)", requires: ["negativePullups"], xp: 4 },
+  { id: "weightedPullups", label: "🏋️", fullLabel: "Weighted Pull-Ups (2x8)", requires: ["pullups"], requires: ["pullups",], xp: 4 },
+  { id: "highPullups", label: "📈", fullLabel: "High Pull-Ups (3x5 )", requires: ["weightedPullups"],xp: 5 },
+  { id: "explosivePullups", label: "⚡", fullLabel: "Explosive Pull-Ups (3x3)", requires: ["highPullups"], xp: 6 },
+  { id: "modifiedMuscleup", label: "🌊", fullLabel: "Modified Muscle-Ups (3x6)", requires: ["explosivePullups"], xp: 7 },
   { id: "archer", label: "🌹", fullLabel: "Archer Pull-Ups (2x3)", requires: ["pullups"], xp: 5 },
   { id: "typewriter", label: "↔️", fullLabel: "Typewriter Pull-Ups (2x3)", requires: ["archer"], xp: 6 },
   { id: "oneArmHold", label: "🖐️", fullLabel: "One-Arm Hold (10s)", requires: ["typewriter"], xp: 7 },
   { id: "oneArmPull", label: "💪", fullLabel: "One-Arm Pull-Up (1x1)", requires: ["oneArmHold"], xp: 10 },
+  { id: "muscleup", label: "🚀", fullLabel: "Muscle-Up (1x1)", requires: ["bandMuscleup", "straightBarDips"], xp: 9 },
 
-  { id: "explosivePullups", label: "⚡", fullLabel: "Explosive Pull-Ups (2x3)", requires: ["pullups"], xp: 5 },
-  { id: "muscleup", label: "🚀", fullLabel: "Muscle-Up (1x1)", requires: ["explosivePullups"], xp: 9 },
 
   { id: "skinTheCat", label: "🐱", fullLabel: "Skin the Cat (2x3)", requires: ["scapularPulls"], xp: 3 },
   { id: "tuckBack", label: "🦴", fullLabel: "Tuck Back Lever (10s)", requires: ["skinTheCat"], xp: 3 },
@@ -43,8 +45,11 @@ const pullSkills = [
   { id: "fullFront", label: "🌪", fullLabel: "Full Front Lever (10s)", requires: ["straddleFront"], xp: 9 },
 ];
 
+
+
 export default function PullTree() {
-  const unlocked = useSkillStore((state) => state.unlockedSkills.pull);
+  const unlockedSkills = useSkillStore((state) => state.unlockedSkills);
+  const unlocked = unlockedSkills.pull;
   const unlockSkill = useSkillStore((state) => state.unlockSkill);
   const resetAll = useSkillStore((state) => state.resetAll);
 
@@ -52,7 +57,6 @@ export default function PullTree() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
   const initialized = useRef(false);
-
   const category = "pull";
 
   const generateFlowData = (skills, unlockedList) => {
@@ -72,19 +76,57 @@ export default function PullTree() {
 
     dagre.layout(dagreGraph);
 
+    const reachable = new Set(unlockedList);
+
+    let newlyReachable = true;
+    while (newlyReachable) {
+      newlyReachable = false;
+      for (const skill of skills) {
+        if (!reachable.has(skill.id) && skill.requires?.every((r) => reachable.has(r))) {
+          reachable.add(skill.id);
+          newlyReachable = true;
+        }
+      }
+    }
+
     const nodes = skills.map((skill) => {
       const { x, y } = dagreGraph.node(skill.id);
+      const isUnlocked = unlockedList.includes(skill.id);
+      const isBaseSkill = !skill.requires || skill.requires.length === 0;
+      const canUnlock = !isUnlocked && skill.requires?.every((r) => unlockedList.includes(r));
+
+      let filter = "none";
+      let opacity = 1;
+      let border = "2px solid #ffffff";
+      let labelText = skill.label;
+      const skillPrereqsMet = skill.requires?.every((r) => unlockedList.includes(r));
+
+      if (isUnlocked) {
+        border = "2px solid #22c55e";
+      } else if (isBaseSkill) {
+        border = "2px solid #ffffff";
+      } else if (canUnlock) {
+        border = "2px dashed #facc15";
+        opacity = 0.85;
+        if (!isBaseSkill && skillPrereqsMet) {
+          // no lock icon anymore
+        }
+      } else {
+        filter = "blur(2px)";
+        opacity = 0.4;
+      }
+
+      // correct closing brace added below
       return {
         id: skill.id,
-        type: "default",
-        data: { label: skill.label },
+        data: { label: labelText },
         position: { x, y },
         draggable: false,
         sourcePosition: "top",
         targetPosition: "bottom",
         style: {
-          border: unlockedList.includes(skill.id) ? "2px solid #22c55e" : "2px solid #ffffff",
-          background: unlockedList.includes(skill.id) ? "#3b82f6" : "#444",
+          border,
+          background: isUnlocked ? "#3b82f6" : canUnlock ? "#444" : "#222",
           color: "white",
           padding: 6,
           borderRadius: 10,
@@ -95,6 +137,9 @@ export default function PullTree() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          filter,
+          opacity,
+          boxShadow: canUnlock ? "0 0 18px 4px #38bdf8" : "none",
         },
       };
     });
@@ -129,13 +174,14 @@ export default function PullTree() {
 
   const onNodeClick = useCallback((_, node) => {
     const skill = pullSkills.find((s) => s.id === node.id);
-    if (!skill) return;
+    if (!skill || unlocked.includes(skill.id)) return;
 
     setTooltip(skill.fullLabel);
     setTimeout(() => setTooltip(null), 2000);
 
     const prereqs = skill.requires || [];
-    const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
+    const allUnlocked = Object.values(unlockedSkills).flat();
+    const lockedPrereqs = prereqs.filter((id) => !allUnlocked.includes(id));
 
     if (lockedPrereqs.length > 0) {
       const names = lockedPrereqs.map((id) => {
@@ -149,13 +195,11 @@ export default function PullTree() {
 
     const fullNames = prereqs.map((id) => {
       const s = pullSkills.find((s) => s.id === id);
-      return s?.fullLabel || id;
+      return s?.fullLabel || `Unknown skill: ${id}`;
     });
 
     const confirmPrereqs = confirm(
-      `To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${fullNames.join(
-        "\n"
-      )}\n\nCan you do all of these?`
+      `To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${fullNames.join("\n")}\n\nCan you do all of these?`
     );
 
     if (!confirmPrereqs || unlocked.includes(skill.id)) return;

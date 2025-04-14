@@ -1,6 +1,6 @@
-// CoreTree.jsx
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlow, {
+  Background,
   Controls,
   ReactFlowProvider,
   useNodesState,
@@ -8,17 +8,24 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useSkillStore } from "../Stores/SkillStore";
+import dagre from "dagre";
+
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+dagreGraph.setGraph({ rankdir: "BT", nodesep: 60, ranksep: 80 });
 
 const coreSkills = [
-  { id: "deadBug", label: "🐞", fullLabel: "Dead Bug (2x20s)", position: { x: -120, y: 500 }, xp: 2 },
-  { id: "hollowHold", label: "🫢", fullLabel: "Hollow Hold (2x20s)", requires: ["deadBug"], position: { x: -120, y: 400 }, xp: 3 },
-  { id: "hollowRocks", label: "🌊", fullLabel: "Hollow Rocks (2x10)", requires: ["hollowHold"], position: { x: -120, y: 300 }, xp: 4 },
-  { id: "lyingLegRaises", label: "🦵", fullLabel: "Lying Leg Raises (2x10)", position: { x: 0, y: 500 }, xp: 2 },
-  { id: "hangingKneeRaises", label: "🦿", fullLabel: "Hanging Knee Raises (2x5)", requires: ["lyingLegRaises"], position: { x: 0, y: 400 }, xp: 3 },
-  { id: "hangingLegRaises", label: "🦖", fullLabel: "Hanging Leg Raises (2x5)", requires: ["hangingKneeRaises"], position: { x: 0, y: 300 }, xp: 5 },
-  { id: "lSit", label: "🪑", fullLabel: "L-Sit (10s)", requires: ["hangingLegRaises"], position: { x: 0, y: 200 }, xp: 6 },
-  { id: "vUps", label: "✅", fullLabel: "V-Ups (2x8)", requires: ["hollowRocks"], position: { x: -60, y: 200 }, xp: 4 },
-  { id: "vToL", label: "📐", fullLabel: "V to L Transition (2x3)", requires: ["vUps", "lSit"], position: { x: -30, y: 100 }, xp: 8 },
+  { id: "deadBug", label: "🐞", fullLabel: "Dead Bug (2x20s)", requires: [], xp: 2 },
+  { id: "hollowHold", label: "🫢", fullLabel: "Hollow Hold (2x20s)", requires: ["deadBug"], xp: 3 },
+  { id: "hollowRocks", label: "🌊", fullLabel: "Hollow Rocks (2x10)", requires: ["hollowHold"], xp: 4 },
+
+  { id: "lyingLegRaises", label: "🦵", fullLabel: "Lying Leg Raises (2x10)", requires: [], xp: 2 },
+  { id: "hangingKneeRaises", label: "🦿", fullLabel: "Hanging Knee Raises (2x5)", requires: ["lyingLegRaises"], xp: 3 },
+  { id: "hangingLegRaises", label: "🦖", fullLabel: "Hanging Leg Raises (2x5)", requires: ["hangingKneeRaises"], xp: 5 },
+  { id: "lSit", label: "🪑", fullLabel: "L-Sit (10s)", requires: ["hangingLegRaises"], xp: 6 },
+
+  { id: "vUps", label: "✅", fullLabel: "V-Ups (2x8)", requires: ["hollowRocks"], xp: 4 },
+  { id: "vToL", label: "📐", fullLabel: "V to L Transition (2x3)", requires: ["vUps", "lSit"], xp: 8 },
 ];
 
 export default function CoreTree() {
@@ -33,32 +40,48 @@ export default function CoreTree() {
   const category = "core";
 
   const generateFlowData = (skills, unlockedList) => {
-    const nodes = skills.map((skill) => ({
-      id: skill.id,
-      type: "default",
-      position: skill.position,
-      draggable: false,
-      data: { label: skill.label },
-      style: {
-        border: "2px solid #ffffff",
-        background: unlockedList.includes(skill.id) ? "#3b82f6" : "#222",
-        color: "white",
-        padding: 6,
-        borderRadius: 10,
-        fontSize: 22,
-        textAlign: "center",
-        width: 48,
-        height: 48,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: unlockedList.includes(skill.id)
-          ? "0 0 6px 1px rgba(255, 255, 255, 0.6)"
-          : "0 0 2px 1px #222",
-        transition: "all 0.3s ease",
-        cursor: "pointer",
-      },
-    }));
+    dagreGraph.setGraph({ rankdir: "BT", nodesep: 60, ranksep: 80 });
+
+    skills.forEach((skill) => {
+      dagreGraph.setNode(skill.id, { width: 80, height: 80 });
+    });
+
+    skills.forEach((skill) => {
+      if (skill.requires) {
+        skill.requires.forEach((req) => {
+          dagreGraph.setEdge(req, skill.id);
+        });
+      }
+    });
+
+    dagre.layout(dagreGraph);
+
+    const nodes = skills.map((skill) => {
+      const { x, y } = dagreGraph.node(skill.id);
+      return {
+        id: skill.id,
+        type: "default",
+        data: { label: skill.label },
+        position: { x, y },
+        draggable: false,
+        sourcePosition: "top",
+        targetPosition: "bottom",
+        style: {
+          border: unlockedList.includes(skill.id) ? "2px solid #22c55e" : "2px solid #ffffff",
+          background: unlockedList.includes(skill.id) ? "#3b82f6" : "#444",
+          color: "white",
+          padding: 6,
+          borderRadius: 10,
+          fontSize: 22,
+          textAlign: "center",
+          width: 48,
+          height: 48,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        },
+      };
+    });
 
     const edges = skills
       .filter((skill) => skill.requires)
@@ -83,7 +106,7 @@ export default function CoreTree() {
 
   const onInit = (instance) => {
     if (!initialized.current) {
-      instance.zoomTo(1);
+      setTimeout(() => instance.fitView({ padding: 0.2 }), 50);
       initialized.current = true;
     }
   };
@@ -92,11 +115,8 @@ export default function CoreTree() {
     const skill = coreSkills.find((s) => s.id === node.id);
     if (!skill) return;
 
-    if (unlocked.includes(skill.id)) {
-      setTooltip(skill.fullLabel);
-      setTimeout(() => setTooltip(null), 2000);
-      return;
-    }
+    setTooltip(skill.fullLabel);
+    setTimeout(() => setTooltip(null), 2000);
 
     const prereqs = skill.requires || [];
     const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
@@ -122,7 +142,8 @@ export default function CoreTree() {
       )}\n\nCan you do all of these?`
     );
 
-    if (!confirmPrereqs) return;
+    if (!confirmPrereqs || unlocked.includes(skill.id)) return;
+
     unlockSkill(category, skill.id, skill.xp || 5);
   }, [unlocked, unlockSkill]);
 
@@ -156,10 +177,10 @@ export default function CoreTree() {
           zoomOnScroll={false}
           zoomOnDoubleClick={false}
           panOnDrag={true}
-          translateExtent={[[-10, -10000], [10, 10000]]}
-          fitView
+          translateExtent={[[-10000, -10000], [10000, 10000]]}
         >
           <Controls position="bottom-left" />
+          <Background color="#1e1e1e" gap={16} />
         </ReactFlow>
         {tooltip && (
           <div
