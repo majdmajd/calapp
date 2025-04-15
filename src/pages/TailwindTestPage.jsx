@@ -2,34 +2,23 @@ import React from "react";
 
 export default function TailwindTestPage() {
   return (
-    <div className="min-h-screen bg-black text-white p-6 space-y-8">
-      {/* Card */}
-      <div className="bg-blue-600/10 border border-blue-500/40 rounded-xl p-4 shadow-md">
-        <h2 className="text-xl font-semibold text-blue-400">Tailwind Test Card</h2>
-        <p className="text-white/80 mt-2">This is a test card styled with Tailwind CSS.</p>
-      </div>
-
-      {/* Button */}
-      <button className="px-6 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-bold transition">
-        Click Me
-      </button>
-
-      {/* Skill Node */}
-      <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-2xl shadow-md">
-        💪
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
-        {["XP", "Level", "Unlocked", "Streak"].map((label, idx) => (
-          <div
-            key={idx}
-            className="bg-white/5 border border-white/10 p-4 rounded-lg text-center"
-          >
-            <div className="text-xs text-white/50 uppercase">{label}</div>
-            <div className="text-lg font-bold text-blue-400 mt-1">{Math.floor(Math.random() * 100)}</div>
-          </div>
-        ))}
+    <div className="flex items-center justify-center bg-gray-900 text-white px-4 py-8">
+      <div className="max-w-sm w-full rounded-2xl overflow-hidden shadow-lg p-6 bg-gray-800 hover:shadow-2xl transition-shadow duration-300">
+        <img
+          className="w-full h-40 object-cover rounded-md mb-4"
+          src="https://via.placeholder.com/400x200"
+          alt="Modern Tailwind Card"
+        />
+        <div className="text-xl font-bold text-blue-400 mb-2">
+          Modern Tailwind Card
+        </div>
+        <p className="text-gray-300 mb-4">
+          This is a custom card styled with Tailwind CSS. It includes a smooth hover effect,
+          crisp shadows, and a modern look.
+        </p>
+        <button className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+          Learn More
+        </button>
       </div>
     </div>
   );

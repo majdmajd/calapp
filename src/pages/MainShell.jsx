@@ -3,26 +3,17 @@ import AppShell from "./AppShell";
 import LevelsPage from "./LevelsPage";
 import ProgressPage from "./ProgressPage";
 import ProfilePage from "./ProfilePage";
-import { FaHome, FaChartLine, FaUser, FaDumbbell } from "react-icons/fa";
-import { useSkillStore } from "../Stores/SkillStore"; // ✅ UPDATED
-import { LayoutDashboard } from "lucide-react";
 import TailwindTestPage from "./TailwindTestPage";
-import { FaFlask } from "react-icons/fa"; // for a test tube icon
-
-
-
+import { FaHome, FaChartLine, FaUser, FaDumbbell } from "react-icons/fa";
+import { LayoutDashboard } from "lucide-react";
+import { useSkillStore } from "../Stores/SkillStore";
 
 export default function MainShell() {
   const [tab, setTab] = useState("home");
-
-  // ✅ Get data and function from global store
   const { xpData, unlockedSkills, unlockSkill } = useSkillStore();
 
   const renderTab = () => {
     switch (tab) {
-      case "test":
-  return <TailwindTestPage />;
-
       case "home":
         return (
           <AppShell
@@ -36,9 +27,8 @@ export default function MainShell() {
         return <ProgressPage />;
       case "profile":
         return <ProfilePage />;
-      case "icons":
-        return <SkillIconGallery />;
-
+      case "test":
+        return <TailwindTestPage />;
       default:
         return (
           <AppShell
@@ -50,57 +40,31 @@ export default function MainShell() {
   };
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        width: "100vw",
-        background: "#000",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div style={{ flex: 1 }}>{renderTab()}</div>
+    <div className="h-screen w-screen bg-black flex flex-col text-white">
+      <div className="flex-grow overflow-hidden">{renderTab()}</div>
 
-      {/* Bottom Navigation */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          backgroundColor: "#111",
-          height: 56,
-          borderTop: "1px solid #333",
-        }}
-      >
-        {[
-          { key: "home", icon: <FaDumbbell />, label: "Tree" },
-          { key: "levels", icon: <FaChartLine />, label: "Levels" },
-          { key: "progress", icon: <FaHome />, label: "Progress" },
-          { key: "profile", icon: <FaUser />, label: "Profile" },
-          { key: "icons", icon: <LayoutDashboard />, label: "Icons" },
-          { key: "test", icon: <FaFlask />, label: "Test" },
-
-        ].map(({ key, icon, label }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            style={{
-              flex: 1,
-              background: "transparent",
-              color: tab === key ? "#3b82f6" : "#ccc",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              fontSize: 12,
-              padding: 6,
-              cursor: "pointer",
-            }}
-          >
-            <div style={{ fontSize: 20 }}>{icon}</div>
-            {label}
-          </button>
-        ))}
+      {/* ✅ Tailwind Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/70 backdrop-blur-md border-t border-white/10">
+        <div className="grid grid-cols-5 py-2 text-sm text-white/60">
+          {[
+            { key: "home", icon: <FaDumbbell />, label: "Tree" },
+            { key: "levels", icon: <FaChartLine />, label: "Levels" },
+            { key: "progress", icon: <FaHome />, label: "Progress" },
+            { key: "profile", icon: <FaUser />, label: "Profile" },
+            { key: "test", icon: <LayoutDashboard />, label: "Test" },
+          ].map(({ key, icon, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex flex-col items-center justify-center transition-all duration-200 ${
+                tab === key ? "text-blue-500" : "hover:text-white"
+              }`}
+            >
+              <div className="text-xl">{icon}</div>
+              <span className="mt-1 text-xs">{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

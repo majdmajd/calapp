@@ -1,64 +1,21 @@
-// AppShell.jsx – forwards XP and unlocked skills to each tree
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import PullTree from "../components/PullTree";
 import PushTree from "../components/PushTree";
 import CoreTree from "../components/CoreTree";
 import LegsTree from "../components/LegsTree";
-import { useSkillStore } from "../Stores/SkillStore"; // ✅ UPDATED
 
-export default function AppShell({ addXp, unlockedSkills }) {
+export default function AppShell({ unlockedSkills, unlockSkill }) {
   const [tab, setTab] = useState("pull");
 
-  // 🔁 bring in actions from Zustand
-  const unlockSkill = useSkillStore((state) => state.unlockSkill);
-  const resetAll = useSkillStore((state) => state.resetAll);
-
-  const renderTree = () => {
-    switch (tab) {
-      case "pull":
-        return (
-          <PullTree
-            addXp={addXp}
-            unlockSkill={unlockSkill}
-            unlocked={unlockedSkills.pull}
-            resetAll={resetAll}
-          />
-        );
-      case "push":
-        return (
-          <PushTree
-            addXp={addXp}
-            unlockSkill={unlockSkill}
-            unlocked={unlockedSkills.push}
-            resetAll={resetAll}
-          />
-        );
-      case "core":
-        return (
-          <CoreTree
-            addXp={addXp}
-            unlockSkill={unlockSkill}
-            unlocked={unlockedSkills.core}
-            resetAll={resetAll}
-          />
-        );
-      case "legs":
-        return (
-          <LegsTree
-            addXp={addXp}
-            unlockSkill={unlockSkill}
-            unlocked={unlockedSkills.legs}
-            resetAll={resetAll}
-          />
-        );
-      default:
-        return null;
-    }
+  const trees = {
+    pull: <PullTree unlockedSkills={unlockedSkills} unlockSkill={unlockSkill} />,
+    push: <PushTree fitViewTrigger={tab} unlockedSkills={unlockedSkills} unlockSkill={unlockSkill} />,
+    core: <CoreTree unlockedSkills={unlockedSkills} unlockSkill={unlockSkill} />,
+    legs: <LegsTree unlockedSkills={unlockedSkills} unlockSkill={unlockSkill} />,
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", background: "#000", height: "100%" }}>
-      {/* Top tab bar */}
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div
         style={{
           display: "flex",
@@ -70,32 +27,27 @@ export default function AppShell({ addXp, unlockedSkills }) {
           width: "100%",
         }}
       >
-        {["pull", "push", "core", "legs"].map((name) => (
+        {Object.keys(trees).map((key) => (
           <button
-            key={name}
-            onClick={() => setTab(name)}
+            key={key}
+            onClick={() => setTab(key)}
             style={{
               flex: 1,
-              height: "100%",
-              border: "none",
-              backgroundColor: tab === name ? "#3b82f6" : "transparent",
-              color: "white",
+              padding: 10,
+              fontSize: 14,
               fontWeight: "bold",
-              fontSize: 16,
+              color: tab === key ? "#3b82f6" : "#ccc",
+              borderBottom: tab === key ? "2px solid #3b82f6" : "none",
+              background: "transparent",
+              textTransform: "uppercase",
               cursor: "pointer",
             }}
           >
-            {name.toUpperCase()}
+            {key}
           </button>
         ))}
       </div>
-
-      {/* Tree container */}
-      <div
-        style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}
-      >
-        <div style={{ width: "100%", height: "100%", maxWidth: "1200px" }}>{renderTree()}</div>
-      </div>
+      <div style={{ flex: 1 }}>{trees[tab]}</div>
     </div>
   );
 }
