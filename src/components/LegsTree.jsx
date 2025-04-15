@@ -200,8 +200,7 @@ export default function LegsTree() {
         const s = legSkills.find((s) => s.id === id);
         return s?.fullLabel.replace(/\s*\([^)]*\)/, "") || id;
       });
-      
-      // Show missing prerequisites modal
+
       setModalState({
         isOpen: true,
         title: `Prerequisites Missing`,
@@ -221,15 +220,22 @@ export default function LegsTree() {
       return s?.fullLabel || id;
     });
 
-    // Show confirmation modal
+    const isBaseSkill = prereqs.length === 0;
+    const message = isBaseSkill
+      ? skill.id === "gluteBridge"
+        ? [`Can you do Glute Bridge (2x12)?`]
+        : skill.id === "wallSit"
+          ? [`Can you do Wall Sit (2x30s)?`]
+          : [`Can you ${skillName.toLowerCase()} for 10 seconds?`]
+      : [
+          `Must be able to do:`,
+          ...fullNames
+        ];
+
     setModalState({
       isOpen: true,
       title: `Unlock ${skillName}?`,
-      message: [
-        `To unlock "${skillName}", you must be able to do:`,
-        ...fullNames.map(name => name.replace(/\s*\([^)]*\)/, "")),
-        `Can you do all of these?`
-      ],
+      message,
       onConfirm: () => {
         unlockSkill(category, skill.id, skill.xp || 5);
         closeModal();
@@ -238,7 +244,6 @@ export default function LegsTree() {
       confirmText: "Unlock",
       cancelText: "Not Yet"
     });
-    
   }, [unlocked, unlockSkill]);
 
   return (

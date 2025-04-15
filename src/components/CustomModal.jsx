@@ -1,140 +1,100 @@
 import React from "react";
 
-export default function CustomModal({ 
-  isOpen, 
-  title, 
-  message, 
-  onConfirm, 
-  onCancel, 
+export default function CustomModal({
+  isOpen,
+  title,
+  message,
+  onConfirm,
+  onCancel,
+  showCancel = true,
   confirmText = "Confirm",
   cancelText = "Cancel",
-  showCancel = true
 }) {
   if (!isOpen) return null;
 
-  // Convert message string to array of lines if it's not already an array
-  const messageLines = Array.isArray(message) ? message : message.split("\n");
+  const cardStyle = {
+    background: "#111",
+    color: "#fff",
+    padding: "2.5rem",
+    borderRadius: "1rem",
+    boxShadow: "0 8px 20px rgba(0, 0, 0, 0.5)",
+    width: "90%",
+    maxWidth: "500px",
+    textAlign: "center",
+  };
 
   return (
     <div
       style={{
         position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        inset: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-        zIndex: 9999,
-        backdropFilter: "blur(3px)",
+        zIndex: 1000,
+        padding: "1rem",
       }}
-      onClick={showCancel ? onCancel : null}
     >
-      <div
-        style={{
-          backgroundColor: "#121212",
-          width: "90%",
-          maxWidth: "400px",
-          borderRadius: "8px",
-          overflow: "hidden",
-          animation: "modalAppear 0.2s ease-out",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header - Black with white text */}
-        <div 
-          style={{
-            backgroundColor: "#121212", 
-            padding: "16px",
-            color: "white",
-            fontSize: "18px",
-            fontWeight: "bold",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)"
-          }}
-        >
-          {title}
-        </div>
+      <div style={cardStyle}>
+        {title && (
+          <h2 style={{ fontSize: "1.25rem", marginBottom: "1.5rem", fontWeight: "bold" }}>
+            {title}
+          </h2>
+        )}
 
-        {/* Modal Body - Black background with white text */}
-        <div
-          style={{
-            backgroundColor: "#121212",
-            padding: "20px 16px",
-            color: "white",
-            fontSize: "15px",
-            lineHeight: "1.5",
-          }}
-        >
-          {/* Body text content */}
-          <div>
-            {messageLines.map((line, i) => (
-              <p key={i} style={{ 
-                marginBottom: i < messageLines.length - 1 ? "16px" : "24px",
-                fontWeight: "normal"
-              }}>
-                {line}
-              </p>
-            ))}
-          </div>
+        {/* Single-line + Spaced Message */}
+        {Array.isArray(message) ? (
+          message.length === 1 ? (
+            <div style={{ whiteSpace: "nowrap", overflowWrap: "normal" }}>{message[0]}</div>
+          ) : (
+            <>
+              <div style={{ marginBottom: "0.75rem" }}>{message[0]}</div>
+              <div style={{ textAlign: "left", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {message.slice(1).map((line, idx) => (
+                  <div key={idx}>{line}</div>
+                ))}
+              </div>
+            </>
+          )
+        ) : (
+          <p style={{ marginBottom: "2.5rem", fontSize: "1rem", lineHeight: "1.8" }}>
+            {message}
+          </p>
+        )}
 
-          {/* Buttons at the bottom of content area */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: "12px"
-            }}
-          >
-            {showCancel && (
-              <button
-                onClick={onCancel}
-                style={{
-                  padding: "8px 16px",
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: "400",
-                }}
-              >
-                {cancelText}
-              </button>
-            )}
+        <div style={{ display: "flex", justifyContent: "center", gap: "1.25rem" }}>
+          {showCancel && (
             <button
-              onClick={onConfirm}
+              onClick={onCancel}
               style={{
-                padding: "8px 16px",
-                backgroundColor: "#3b82f6", // Blue button - the only blue element
-                color: "white",
+                background: "#444",
                 border: "none",
-                borderRadius: "4px",
+                borderRadius: "0.5rem",
+                padding: "0.5rem 1.2rem",
+                color: "#fff",
                 cursor: "pointer",
-                fontSize: "14px",
-                fontWeight: "500",
               }}
             >
-              {confirmText}
+              {cancelText}
             </button>
-          </div>
+          )}
+          <button
+            onClick={onConfirm}
+            style={{
+              background: "#1e90ff",
+              border: "none",
+              borderRadius: "0.5rem",
+              padding: "0.5rem 1.2rem",
+              color: "#fff",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
+          >
+            {confirmText}
+          </button>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes modalAppear {
-          from {
-            opacity: 0;
-            transform: scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
     </div>
   );
 }

@@ -13,13 +13,18 @@ import CustomModal from "./CustomModal";
 
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
-dagreGraph.setGraph({ rankdir: "BT", nodesep: 60, ranksep: 80 });
+dagreGraph.setGraph({
+  rankdir: "BT",
+  nodesep: 100,
+  ranksep: 80
+});
 
 const pullSkills = [
   { id: "deadHang", label: "🪢", fullLabel: "Dead Hang (30s)", xp: 2 },
   { id: "scapularPulls", label: "⬇️", fullLabel: "Scapular Pulls (2x6)", requires: ["deadHang"], xp: 2 },
   { id: "negativePullups", label: "🔻", fullLabel: "Negative Pull-Ups (2x8) with a 3 second negative", requires: ["scapularPulls"], xp: 3 },
-  { id: "pullups", label: "🧱", fullLabel: "Pull-Ups (3x10)", requires: ["negativePullups"], xp: 4 },
+  { id: "bandedPullups", label: "🟦", fullLabel: "Banded Pull-Ups (3x8)", requires: ["scapularPulls"], xp: 3 },
+  { id: "pullups", label: "🧱", fullLabel: "Pull-Ups (3x10)", requires: ["bandedPullups", "negativePullups"], xp: 4 },
   { id: "weightedPullups", label: "🏋️", fullLabel: "Weighted Pull-Ups (2x8)", requires: ["pullups"], xp: 4 },
   { id: "highPullups", label: "📈", fullLabel: "High Pull-Ups (3x5 )", requires: ["weightedPullups"],xp: 5 },
   { id: "explosivePullups", label: "⚡", fullLabel: "Explosive Pull-Ups (3x3)", requires: ["highPullups"], xp: 6 },
@@ -211,8 +216,7 @@ export default function PullTree() {
         const s = pullSkills.find((s) => s.id === id);
         return s?.fullLabel.replace(/\s*\([^)]*\)/, "") || id;
       });
-      
-      // Show missing prerequisites modal - simplified format
+
       setModalState({
         isOpen: true,
         title: `Prerequisites Missing`,
@@ -232,15 +236,18 @@ export default function PullTree() {
       return s?.fullLabel || `Unknown skill: ${id}`;
     });
 
-    // Show confirmation modal - simplified format matching example image
+    const isBaseSkill = prereqs.length === 0;
+    const message = isBaseSkill
+      ? [`Can you ${skillName.toLowerCase()} for 10 seconds?`]
+      : [
+          `Must be able to do:`,
+          ...fullNames
+        ];
+
     setModalState({
       isOpen: true,
       title: `Unlock ${skillName}?`,
-      message: [
-        `To unlock "${skillName}", you must be able to do:`,
-        ...fullNames.map(name => name.replace(/\s*\([^)]*\)/, "")),
-        `Can you do all of these?`
-      ],
+      message,
       onConfirm: () => {
         unlockSkill(category, skill.id, skill.xp || 5);
         closeModal();
@@ -249,8 +256,8 @@ export default function PullTree() {
       confirmText: "Unlock",
       cancelText: "Not Yet"
     });
-    
   }, [unlocked, unlockSkill, unlockedSkills]);
+  
 
   return (
     <ReactFlowProvider>
