@@ -9,6 +9,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { useSkillStore } from "../Stores/SkillStore";
 import dagre from "dagre";
+import CustomModal from "./CustomModal";
 
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -50,85 +51,140 @@ const pushSkills = [
   { id: "fullPlanche", label: "🦅", fullLabel: "Full Planche (10s)", requires: ["straddlePlanche"], xp: 10 },
 ];
 
+const generateFlowData = (skills, unlockedList) => {
+  skills.forEach((skill) => {
+    dagreGraph.setNode(skill.id, { width: 80, height: 80 });
+  });
+
+  skills.forEach((skill) => {
+    if (skill.requires) {
+      skill.requires.forEach((req) => {
+        dagreGraph.setEdge(req, skill.id);
+      });
+    }
+  });
+
+  dagre.layout(dagreGraph);
+
+  const nodes = skills.map((skill) => {
+    const layoutNode = dagreGraph.node(skill.id);
+    const x = layoutNode.x;
+    const y = layoutNode.y;
+    const isUnlocked = unlockedList.includes(skill.id);
+    const isBaseSkill = !skill.requires || skill.requires.length === 0;
+    const canUnlock = !isUnlocked && skill.requires?.every((r) => unlockedList.includes(r));
+
+    let filter = "none";
+    let opacity = 1;
+    let border = "2px solid #ffffff";
+    let labelText = skill.label;
+
+    if (isUnlocked) {
+      border = "2px solid #22c55e";
+    } else if (isBaseSkill) {
+      border = "2px solid #ffffff";
+    } else if (canUnlock) {
+      border = "2px dashed #facc15";
+      opacity = 0.85;
+    } else {
+      filter = "blur(2px)";
+      opacity = 0.4;
+    }
+
+    return {
+      id: skill.id,
+      type: "default",
+      data: { label: labelText },
+      position: { x, y },
+      draggable: false,
+      sourcePosition: "top",
+      targetPosition: "bottom",
+      style: {
+        border,
+        background: isUnlocked ? "#3b82f6" : canUnlock ? "#444" : "#222",
+        color: "white",
+        padding: 6,
+        borderRadius: 10,
+        fontSize: 22,
+        textAlign: "center",
+        width: 48,
+        height: 48,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        filter,
+        opacity,
+        boxShadow: canUnlock ? "0 0 18px 4px #38bdf8" : "none",
+      },
+    };
+  });
+
+  const edges = skills
+    .filter((skill) => skill.requires)
+    .flatMap((skill) =>
+      skill.requires.map((req) => ({
+        id: `${req}->${skill.id}`,
+        source: req,
+        target: skill.id,
+        animated: false,
+        style: { 
+          stroke: "#ffffff", 
+          strokeWidth: 2,
+          opacity: nodes.find(n => n.id === skill.id).style.opacity,
+          filter: nodes.find(n => n.id === skill.id).style.filter
+        },
+      }))
+    );
+
+  return { nodes, edges };
+};
+
 export default function PushTree() {
-  const unlocked = useSkillStore((state) => state.unlockedSkills.push);
+  // Get everything from the store
+  const unlockedSkills = useSkillStore((state) => state.unlockedSkills);
+  const unlocked = unlockedSkills.push;
   const unlockSkill = useSkillStore((state) => state.unlockSkill);
-  const resetAll = useSkillStore((state) => state.resetAll);
+  
+  // Modal state
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    showCancel: true,
+    confirmText: "Unlock",
+    cancelText: "Not Yet"
+  });
+  
+  // Manual implementation for resetting just the push category
+  const resetPushOnly = () => {
+    const currentState = useSkillStore.getState();
+    useSkillStore.setState({
+      ...currentState,
+      xpData: {
+        ...currentState.xpData,
+        push: 0
+      },
+      unlockedSkills: {
+        ...currentState.unlockedSkills,
+        push: []
+      }
+    });
+  };
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
   const initialized = useRef(false);
+  const [selectedSkill, setSelectedSkill] = useState(null);
   const category = "push";
 
-  const generateFlowData = (skills, unlockedList) => {
-    dagreGraph.setGraph({ rankdir: "BT", nodesep: 60, ranksep: 80 });
-
-    skills.forEach((skill) => {
-      dagreGraph.setNode(skill.id, { width: 80, height: 80 });
-    });
-
-    skills.forEach((skill) => {
-      if (skill.requires) {
-        skill.requires.forEach((req) => {
-          dagreGraph.setEdge(req, skill.id);
-        });
-      }
-    });
-
-    dagreGraph.setNode("kneePushups", {
-      ...dagreGraph.node("kneePushups"),
-      rank: "source",
-    });
-
-    dagre.layout(dagreGraph);
-
-    const nodes = skills.map((skill) => {
-      const { x, y } = dagreGraph.node(skill.id);
-      return {
-        id: skill.id,
-        type: "default",
-        data: { label: skill.label },
-        position: { x, y },
-        draggable: false,
-        sourcePosition: "top",
-        targetPosition: "bottom",
-        style: {
-          border: unlockedList.includes(skill.id) ? "2px solid #22c55e" : "2px solid #ffffff",
-          background: unlockedList.includes(skill.id) ? "#3b82f6" : "#444",
-          color: "white",
-          padding: 6,
-          borderRadius: 10,
-          fontSize: 22,
-          textAlign: "center",
-          width: 48,
-          height: 48,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        },
-      };
-    });
-
-    const edges = skills
-      .filter((skill) => skill.requires)
-      .flatMap((skill) =>
-        skill.requires.map((req) => ({
-          id: `${req}->${skill.id}`,
-          source: req,
-          target: skill.id,
-          animated: false,
-          style: { stroke: "#ffffff", strokeWidth: 2 },
-        }))
-      );
-
-    return { nodes, edges };
-  };
-
   useEffect(() => {
-    const { nodes, edges } = generateFlowData(pushSkills, unlocked);
-    setNodes(nodes);
-    setEdges(edges);
+    (async () => {
+      const { nodes, edges } = generateFlowData(pushSkills, unlocked);
+      setNodes(nodes);
+      setEdges(edges);
+    })();
   }, [unlocked]);
 
   const onInit = (instance) => {
@@ -138,47 +194,76 @@ export default function PushTree() {
     }
   };
 
+  const closeModal = () => {
+    setModalState(prev => ({ ...prev, isOpen: false }));
+    setSelectedSkill(null);
+  };
+
   const onNodeClick = useCallback((_, node) => {
     const skill = pushSkills.find((s) => s.id === node.id);
-    if (!skill) return;
+    if (!skill || unlocked.includes(skill.id)) return;
 
     setTooltip(skill.fullLabel);
     setTimeout(() => setTooltip(null), 2000);
+    setSelectedSkill(skill);
 
     const prereqs = skill.requires || [];
-    const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
+    const allUnlocked = Object.values(unlockedSkills).flat();
+    const lockedPrereqs = prereqs.filter((id) => !allUnlocked.includes(id));
+
+    const skillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
 
     if (lockedPrereqs.length > 0) {
       const names = lockedPrereqs.map((id) => {
         const s = pushSkills.find((s) => s.id === id);
         return s?.fullLabel.replace(/\s*\([^)]*\)/, "") || id;
       });
-      const currentSkillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
-      alert(`To unlock "${currentSkillName}", you must first unlock:\n\n${names.join("\n")}`);
+      
+      // Show missing prerequisites modal
+      setModalState({
+        isOpen: true,
+        title: `Prerequisites Missing`,
+        message: [
+          `To unlock "${skillName}", you must first unlock:`,
+          ...names
+        ],
+        onConfirm: closeModal,
+        showCancel: false,
+        confirmText: "Got it"
+      });
       return;
     }
 
     const fullNames = prereqs.map((id) => {
       const s = pushSkills.find((s) => s.id === id);
-      return s?.fullLabel || id;
+      return s?.fullLabel || `Unknown skill: ${id}`;
     });
 
-    const confirmPrereqs = confirm(
-      `To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${fullNames.join(
-        "\n"
-      )}\n\nCan you do all of these?`
-    );
-
-    if (!confirmPrereqs || unlocked.includes(skill.id)) return;
-
-    unlockSkill(category, skill.id, skill.xp || 5);
-  }, [unlocked, unlockSkill]);
+    // Show confirmation modal
+    setModalState({
+      isOpen: true,
+      title: `Unlock ${skillName}?`,
+      message: [
+        `To unlock "${skillName}", you must be able to do:`,
+        ...fullNames.map(name => name.replace(/\s*\([^)]*\)/, "")),
+        `Can you do all of these?`
+      ],
+      onConfirm: () => {
+        unlockSkill(category, skill.id, skill.xp || 5);
+        closeModal();
+      },
+      showCancel: true,
+      confirmText: "Unlock",
+      cancelText: "Not Yet"
+    });
+    
+  }, [unlocked, unlockSkill, unlockedSkills]);
 
   return (
     <ReactFlowProvider>
       <div style={{ width: "100%", height: "100%", background: "#000", position: "relative" }}>
         <button
-          onClick={resetAll}
+          onClick={resetPushOnly}
           style={{
             position: "absolute",
             top: 10,
@@ -191,7 +276,7 @@ export default function PushTree() {
             borderRadius: 6,
           }}
         >
-          Reset Tree
+          Reset Push Tree
         </button>
         <ReactFlow
           nodes={nodes}
@@ -222,12 +307,23 @@ export default function PushTree() {
               borderRadius: 8,
               fontSize: 14,
               zIndex: 1000,
-              boxShadow: "0 0 8px #000",
             }}
           >
             {tooltip}
           </div>
         )}
+        
+        {/* Custom Modal */}
+        <CustomModal
+          isOpen={modalState.isOpen}
+          title={modalState.title}
+          message={modalState.message}
+          onConfirm={modalState.onConfirm}
+          onCancel={closeModal}
+          showCancel={modalState.showCancel}
+          confirmText={modalState.confirmText}
+          cancelText={modalState.cancelText}
+        />
       </div>
     </ReactFlowProvider>
   );

@@ -1,4 +1,3 @@
-// Core Tree Update with Blur Effect for Locked Paths
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import ReactFlow, {
   Background,
@@ -10,6 +9,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { useSkillStore } from "../Stores/SkillStore";
 import dagre from "dagre";
+import CustomModal from "./CustomModal";
 
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -30,12 +30,39 @@ const legSkills = [
 export default function LegsTree() {
   const unlocked = useSkillStore((state) => state.unlockedSkills.legs);
   const unlockSkill = useSkillStore((state) => state.unlockSkill);
-  const resetAll = useSkillStore((state) => state.resetAll);
+  
+  // Modal state
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    showCancel: true,
+    confirmText: "Unlock",
+    cancelText: "Not Yet"
+  });
+  
+  // Manual implementation for resetting just the legs category
+  const resetLegsOnly = () => {
+    const currentState = useSkillStore.getState();
+    useSkillStore.setState({
+      ...currentState,
+      xpData: {
+        ...currentState.xpData,
+        legs: 0
+      },
+      unlockedSkills: {
+        ...currentState.unlockedSkills,
+        legs: []
+      }
+    });
+  };
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
   const initialized = useRef(false);
+  const [selectedSkill, setSelectedSkill] = useState(null);
   const category = "legs";
 
   const isLockedPath = (skill) => {
@@ -71,6 +98,7 @@ export default function LegsTree() {
       let filter = "none";
       let opacity = 1;
       let border = "2px solid #ffffff";
+      let labelText = skill.label;
 
       if (isUnlocked) {
         border = "2px solid #22c55e";
@@ -91,7 +119,7 @@ export default function LegsTree() {
       return {
         id: skill.id,
         type: "default",
-        data: { label: canUnlock ? `🔒 ${skill.label}` : skill.label },
+        data: { label: skill.label },
         position: { x, y },
         draggable: false,
         sourcePosition: "top",
@@ -111,6 +139,7 @@ export default function LegsTree() {
           justifyContent: "center",
           filter,
           opacity,
+          boxShadow: canUnlock ? "0 0 18px 4px #38bdf8" : "none",
         },
       };
     });
@@ -123,7 +152,12 @@ export default function LegsTree() {
           source: req,
           target: skill.id,
           animated: false,
-          style: { stroke: "#ffffff", strokeWidth: 2 },
+          style: { 
+            stroke: "#ffffff", 
+            strokeWidth: 2,
+            opacity: nodes.find(n => n.id === skill.id).style.opacity,
+            filter: nodes.find(n => n.id === skill.id).style.filter
+          },
         }))
       );
 
@@ -143,23 +177,42 @@ export default function LegsTree() {
     }
   };
 
+  const closeModal = () => {
+    setModalState(prev => ({ ...prev, isOpen: false }));
+    setSelectedSkill(null);
+  };
+
   const onNodeClick = useCallback((_, node) => {
     const skill = legSkills.find((s) => s.id === node.id);
-    if (!skill) return;
+    if (!skill || unlocked.includes(skill.id)) return;
 
     setTooltip(skill.fullLabel);
     setTimeout(() => setTooltip(null), 2000);
+    setSelectedSkill(skill);
 
     const prereqs = skill.requires || [];
     const lockedPrereqs = prereqs.filter((id) => !unlocked.includes(id));
+
+    const skillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
 
     if (lockedPrereqs.length > 0) {
       const names = lockedPrereqs.map((id) => {
         const s = legSkills.find((s) => s.id === id);
         return s?.fullLabel.replace(/\s*\([^)]*\)/, "") || id;
       });
-      const currentSkillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
-      alert(`To unlock "${currentSkillName}", you must first unlock:\n\n${names.join("\n")}`);
+      
+      // Show missing prerequisites modal
+      setModalState({
+        isOpen: true,
+        title: `Prerequisites Missing`,
+        message: [
+          `To unlock "${skillName}", you must first unlock:`,
+          ...names
+        ],
+        onConfirm: closeModal,
+        showCancel: false,
+        confirmText: "Got it"
+      });
       return;
     }
 
@@ -168,20 +221,31 @@ export default function LegsTree() {
       return s?.fullLabel || id;
     });
 
-    const confirmPrereqs = confirm(
-      `To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${fullNames.join("\n")}\n\nCan you do all of these?`
-    );
-
-    if (!confirmPrereqs || unlocked.includes(skill.id)) return;
-
-    unlockSkill(category, skill.id, skill.xp || 5);
+    // Show confirmation modal
+    setModalState({
+      isOpen: true,
+      title: `Unlock ${skillName}?`,
+      message: [
+        `To unlock "${skillName}", you must be able to do:`,
+        ...fullNames.map(name => name.replace(/\s*\([^)]*\)/, "")),
+        `Can you do all of these?`
+      ],
+      onConfirm: () => {
+        unlockSkill(category, skill.id, skill.xp || 5);
+        closeModal();
+      },
+      showCancel: true,
+      confirmText: "Unlock",
+      cancelText: "Not Yet"
+    });
+    
   }, [unlocked, unlockSkill]);
 
   return (
     <ReactFlowProvider>
       <div style={{ width: "100%", height: "100%", background: "#000", position: "relative" }}>
         <button
-          onClick={resetAll}
+          onClick={resetLegsOnly}
           style={{
             position: "absolute",
             top: 10,
@@ -194,7 +258,7 @@ export default function LegsTree() {
             borderRadius: 6,
           }}
         >
-          Reset Tree
+          Reset Legs Tree
         </button>
         <ReactFlow
           nodes={nodes}
@@ -231,6 +295,18 @@ export default function LegsTree() {
             {tooltip}
           </div>
         )}
+        
+        {/* Custom Modal */}
+        <CustomModal
+          isOpen={modalState.isOpen}
+          title={modalState.title}
+          message={modalState.message}
+          onConfirm={modalState.onConfirm}
+          onCancel={closeModal}
+          showCancel={modalState.showCancel}
+          confirmText={modalState.confirmText}
+          cancelText={modalState.cancelText}
+        />
       </div>
     </ReactFlowProvider>
   );

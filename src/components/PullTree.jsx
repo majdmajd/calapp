@@ -1,5 +1,4 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import ELK from 'elkjs/lib/elk.bundled.js';
 import ReactFlow, {
   Background,
   Controls,
@@ -10,6 +9,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { useSkillStore } from "../Stores/SkillStore";
 import dagre from "dagre";
+import CustomModal from "./CustomModal";
 
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -30,8 +30,6 @@ const pullSkills = [
   { id: "oneArmHold", label: "🖐️", fullLabel: "One-Arm Hold (10s)", requires: ["typewriter"], xp: 7 },
   { id: "oneArmPull", label: "💪", fullLabel: "One-Arm Pull-Up (1x1)", requires: ["oneArmHold"], xp: 10 },
   { id: "muscleup", label: "🚀", fullLabel: "Muscle-Up (1x1)", requires: ["bandMuscleup", "modifiedMuscleup"], xp: 9 },
-
-
   { id: "skinTheCat", label: "🐱", fullLabel: "Skin the Cat (2x3)", requires: ["scapularPulls"], xp: 3 },
   { id: "tuckBack", label: "🦴", fullLabel: "Tuck Back Lever (10s)", requires: ["skinTheCat"], xp: 3 },
   { id: "advTuckBack", label: "🦴", fullLabel: "Adv. Tuck Back Lever (10s)", requires: ["tuckBack"], xp: 4 },
@@ -39,7 +37,6 @@ const pullSkills = [
   { id: "openHalfBack", label: "🦴", fullLabel: "Open Half Lay Back Lever (10s)", requires: ["halfLayBack"], xp: 6 },
   { id: "straddleBack", label: "🦴", fullLabel: "Straddle Back Lever (10s)", requires: ["openHalfBack"], xp: 7 },
   { id: "fullBack", label: "🦴", fullLabel: "Full Back Lever (10s)", requires: ["straddleBack"], xp: 9 },
-
   { id: "tuckFront", label: "🌪", fullLabel: "Tuck Front Lever (10s)", requires: ["pullups"], xp: 3 },
   { id: "advTuckFront", label: "🌪", fullLabel: "Adv. Tuck Front Lever (10s)", requires: ["tuckFront"], xp: 4 },
   { id: "halfLayFront", label: "🌪", fullLabel: "Half Lay Front Lever (10s)", requires: ["advTuckFront"], xp: 5 },
@@ -123,7 +120,12 @@ const generateFlowData = (skills, unlockedList) => {
         source: req,
         target: skill.id,
         animated: false,
-        style: { stroke: "#ffffff", strokeWidth: 2 },
+        style: { 
+          stroke: "#ffffff", 
+          strokeWidth: 2,
+          opacity: nodes.find(n => n.id === skill.id).style.opacity,
+          filter: nodes.find(n => n.id === skill.id).style.filter
+        },
       }))
     );
 
@@ -131,15 +133,43 @@ const generateFlowData = (skills, unlockedList) => {
 };
 
 export default function PullTree() {
+  // Get everything from the store
   const unlockedSkills = useSkillStore((state) => state.unlockedSkills);
   const unlocked = unlockedSkills.pull;
   const unlockSkill = useSkillStore((state) => state.unlockSkill);
-  const resetAll = useSkillStore((state) => state.resetAll);
+
+  // Modal state
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    showCancel: true,
+    confirmText: "Yes, Unlock",
+    cancelText: "Not Yet"
+  });
+
+  // Manual implementation for resetting just the pull category
+  const resetPullOnly = () => {
+    const currentState = useSkillStore.getState();
+    useSkillStore.setState({
+      ...currentState,
+      xpData: {
+        ...currentState.xpData,
+        pull: 0
+      },
+      unlockedSkills: {
+        ...currentState.unlockedSkills,
+        pull: []
+      }
+    });
+  };
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [tooltip, setTooltip] = useState(null);
   const initialized = useRef(false);
+  const [selectedSkill, setSelectedSkill] = useState(null);
   const category = "pull";
 
   useEffect(() => {
@@ -157,24 +187,43 @@ export default function PullTree() {
     }
   };
 
+  const closeModal = () => {
+    setModalState(prev => ({ ...prev, isOpen: false }));
+    setSelectedSkill(null);
+  };
+
   const onNodeClick = useCallback((_, node) => {
     const skill = pullSkills.find((s) => s.id === node.id);
     if (!skill || unlocked.includes(skill.id)) return;
 
     setTooltip(skill.fullLabel);
     setTimeout(() => setTooltip(null), 2000);
+    setSelectedSkill(skill);
 
     const prereqs = skill.requires || [];
     const allUnlocked = Object.values(unlockedSkills).flat();
     const lockedPrereqs = prereqs.filter((id) => !allUnlocked.includes(id));
+
+    const skillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
 
     if (lockedPrereqs.length > 0) {
       const names = lockedPrereqs.map((id) => {
         const s = pullSkills.find((s) => s.id === id);
         return s?.fullLabel.replace(/\s*\([^)]*\)/, "") || id;
       });
-      const currentSkillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
-      alert(`To unlock "${currentSkillName}", you must first unlock:\n\n${names.join("\n")}`);
+      
+      // Show missing prerequisites modal - simplified format
+      setModalState({
+        isOpen: true,
+        title: `Prerequisites Missing`,
+        message: [
+          `To unlock "${skillName}", you must first unlock:`,
+          ...names
+        ],
+        onConfirm: closeModal,
+        showCancel: false,
+        confirmText: "Got it"
+      });
       return;
     }
 
@@ -183,20 +232,31 @@ export default function PullTree() {
       return s?.fullLabel || `Unknown skill: ${id}`;
     });
 
-    const confirmPrereqs = confirm(
-      `To unlock "${skill.fullLabel.replace(/\s*\([^)]*\)/, "")}", you must be able to do:\n\n${fullNames.join("\n")}\n\nCan you do all of these?`
-    );
-
-    if (!confirmPrereqs || unlocked.includes(skill.id)) return;
-
-    unlockSkill(category, skill.id, skill.xp || 5);
-  }, [unlocked, unlockSkill]);
+    // Show confirmation modal - simplified format matching example image
+    setModalState({
+      isOpen: true,
+      title: `Unlock ${skillName}?`,
+      message: [
+        `To unlock "${skillName}", you must be able to do:`,
+        ...fullNames.map(name => name.replace(/\s*\([^)]*\)/, "")),
+        `Can you do all of these?`
+      ],
+      onConfirm: () => {
+        unlockSkill(category, skill.id, skill.xp || 5);
+        closeModal();
+      },
+      showCancel: true,
+      confirmText: "Unlock",
+      cancelText: "Not Yet"
+    });
+    
+  }, [unlocked, unlockSkill, unlockedSkills]);
 
   return (
     <ReactFlowProvider>
       <div style={{ width: "100%", height: "100%", background: "#000", position: "relative" }}>
         <button
-          onClick={resetAll}
+          onClick={resetPullOnly}
           style={{
             position: "absolute",
             top: 10,
@@ -209,7 +269,7 @@ export default function PullTree() {
             borderRadius: 6,
           }}
         >
-          Reset Tree
+          Reset Pull Tree
         </button>
         <ReactFlow
           nodes={nodes}
@@ -245,6 +305,18 @@ export default function PullTree() {
             {tooltip}
           </div>
         )}
+        
+        {/* Custom Modal - Simplified Version */}
+        <CustomModal
+          isOpen={modalState.isOpen}
+          title={modalState.title}
+          message={modalState.message}
+          onConfirm={modalState.onConfirm}
+          onCancel={closeModal}
+          showCancel={modalState.showCancel}
+          confirmText={modalState.confirmText}
+          cancelText={modalState.cancelText}
+        />
       </div>
     </ReactFlowProvider>
   );

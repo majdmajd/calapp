@@ -5,8 +5,10 @@ import ProgressPage from "./ProgressPage";
 import ProfilePage from "./ProfilePage";
 import { FaHome, FaChartLine, FaUser, FaDumbbell } from "react-icons/fa";
 import { useSkillStore } from "../Stores/SkillStore"; // ✅ UPDATED
-import SkillIconGallery from "../components/SkillIconGallery"; // ✅ if using gallery
 import { LayoutDashboard } from "lucide-react";
+import TailwindTestPage from "./TailwindTestPage";
+import { FaFlask } from "react-icons/fa"; // for a test tube icon
+
 
 
 
@@ -18,6 +20,9 @@ export default function MainShell() {
 
   const renderTab = () => {
     switch (tab) {
+      case "test":
+  return <TailwindTestPage />;
+
       case "home":
         return (
           <AppShell
@@ -72,6 +77,7 @@ export default function MainShell() {
           { key: "progress", icon: <FaHome />, label: "Progress" },
           { key: "profile", icon: <FaUser />, label: "Profile" },
           { key: "icons", icon: <LayoutDashboard />, label: "Icons" },
+          { key: "test", icon: <FaFlask />, label: "Test" },
 
         ].map(({ key, icon, label }) => (
           <button

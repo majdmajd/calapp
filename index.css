@@ -1,0 +1,9 @@
+@import "tailwindcss/preflight";
+@import "tailwindcss/utilities";
+
+body {
+  margin: 0;
+  background: #000;
+  color: white;
+  font-family: sans-serif;
+}
