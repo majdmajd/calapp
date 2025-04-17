@@ -11,6 +11,7 @@ import { useSkillStore } from "../Stores/SkillStore";
 import dagre from "dagre";
 import CustomModal from "./CustomModal";
 
+
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 dagreGraph.setGraph({
@@ -139,9 +140,8 @@ const generateFlowData = (skills, unlockedList) => {
 
 export default function PullTree() {
   // Get everything from the store
-  const unlockedSkills = useSkillStore((state) => state.unlockedSkills);
-  const unlocked = unlockedSkills.pull;
-  const unlockSkill = useSkillStore((state) => state.unlockSkill);
+  const unlocked = useSkillStore((state) => state.getUnlockedSkills().pull);
+  console.log("unlocked pull skills:", unlocked);
 
   // Modal state
   const [modalState, setModalState] = useState({
@@ -153,21 +153,11 @@ export default function PullTree() {
     confirmText: "Yes, Unlock",
     cancelText: "Not Yet"
   });
+  const unlockSkill = useSkillStore((state) => state.unlockSkill);
 
   // Manual implementation for resetting just the pull category
   const resetPullOnly = () => {
-    const currentState = useSkillStore.getState();
-    useSkillStore.setState({
-      ...currentState,
-      xpData: {
-        ...currentState.xpData,
-        pull: 0
-      },
-      unlockedSkills: {
-        ...currentState.unlockedSkills,
-        pull: []
-      }
-    });
+    useSkillStore.getState().resetAll(); // only resets current user's data
   };
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -206,7 +196,7 @@ export default function PullTree() {
     setSelectedSkill(skill);
 
     const prereqs = skill.requires || [];
-    const allUnlocked = Object.values(unlockedSkills).flat();
+    const allUnlocked = Object.values(useSkillStore.getState().getUnlockedSkills()).flat();
     const lockedPrereqs = prereqs.filter((id) => !allUnlocked.includes(id));
 
     const skillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
@@ -256,7 +246,7 @@ export default function PullTree() {
       confirmText: "Unlock",
       cancelText: "Not Yet"
     });
-  }, [unlocked, unlockSkill, unlockedSkills]);
+  }, [unlocked, unlockSkill]);
   
 
   return (

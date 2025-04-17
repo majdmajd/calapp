@@ -28,7 +28,7 @@ const legSkills = [
 ];
 
 export default function LegsTree() {
-  const unlocked = useSkillStore((state) => state.unlockedSkills.legs);
+const unlocked = useSkillStore((state) => state.getUnlockedSkills().legs);
   const unlockSkill = useSkillStore((state) => state.unlockSkill);
   
   // Modal state
@@ -42,20 +42,8 @@ export default function LegsTree() {
     cancelText: "Not Yet"
   });
   
-  // Manual implementation for resetting just the legs category
   const resetLegsOnly = () => {
-    const currentState = useSkillStore.getState();
-    useSkillStore.setState({
-      ...currentState,
-      xpData: {
-        ...currentState.xpData,
-        legs: 0
-      },
-      unlockedSkills: {
-        ...currentState.unlockedSkills,
-        legs: []
-      }
-    });
+    useSkillStore.getState().resetAll();
   };
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);

@@ -1,6 +1,7 @@
 import React from "react";
 import { PieChart as MinimalPieChart } from 'react-minimal-pie-chart';
 import colors from 'tailwindcss/colors';
+import { useSkillStore } from "../Stores/SkillStore";
 
 const COLORS = [
   colors.blue[300],
@@ -9,7 +10,8 @@ const COLORS = [
   colors.blue[800],
 ];
 
-export default function LevelsPage({ xpData }) {
+export default function LevelsPage() {
+  const xpData = useSkillStore((state) => state.getXpData());
   const categories = ["push", "pull", "core", "legs"];
   const pieData = categories.map((key, i) => ({
     name: key.toUpperCase(),
@@ -33,10 +35,10 @@ export default function LevelsPage({ xpData }) {
             value,
             color
           }))}
-          lineWidth={30}
+          lineWidth={35}
           radius={40}
           animate
-          paddingAngle={1}
+          paddingAngle={.5}
         />
       </div>
 

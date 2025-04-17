@@ -30,7 +30,7 @@ const coreSkills = [
 ];
 
 export default function CoreTree() {
-  const unlocked = useSkillStore((state) => state.unlockedSkills.core);
+const unlocked = useSkillStore((state) => state.getUnlockedSkills().core);
   const unlockSkill = useSkillStore((state) => state.unlockSkill);
   
   // Modal state
@@ -46,18 +46,7 @@ export default function CoreTree() {
   
   // Manual implementation for resetting just the core category
   const resetCoreOnly = () => {
-    const currentState = useSkillStore.getState();
-    useSkillStore.setState({
-      ...currentState,
-      xpData: {
-        ...currentState.xpData,
-        core: 0
-      },
-      unlockedSkills: {
-        ...currentState.unlockedSkills,
-        core: []
-      }
-    });
+    useSkillStore.getState().resetAll();
   };
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);

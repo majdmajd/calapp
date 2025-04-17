@@ -1,53 +1,37 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState } from "react";
 import PullTree from "../components/PullTree";
 import PushTree from "../components/PushTree";
 import CoreTree from "../components/CoreTree";
 import LegsTree from "../components/LegsTree";
 
-export default function AppShell({ unlockedSkills, unlockSkill }) {
+export default function AppShell() {
   const [tab, setTab] = useState("pull");
 
   const trees = {
-    pull: <PullTree unlockedSkills={unlockedSkills} unlockSkill={unlockSkill} />,
-    push: <PushTree fitViewTrigger={tab} unlockedSkills={unlockedSkills} unlockSkill={unlockSkill} />,
-    core: <CoreTree unlockedSkills={unlockedSkills} unlockSkill={unlockSkill} />,
-    legs: <LegsTree unlockedSkills={unlockedSkills} unlockSkill={unlockSkill} />,
+    pull: <PullTree />,
+    push: <PushTree fitViewTrigger={tab} />,
+    core: <CoreTree />,
+    legs: <LegsTree />,
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          alignItems: "center",
-          backgroundColor: "#111",
-          borderBottom: "2px solid #222",
-          height: 50,
-          width: "100%",
-        }}
-      >
+    <div className="flex flex-col h-full bg-black text-white">
+      <div className="flex justify-around items-center bg-[#111] border-b-2 border-[#222] h-12 w-full">
         {Object.keys(trees).map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            style={{
-              flex: 1,
-              padding: 10,
-              fontSize: 14,
-              fontWeight: "bold",
-              color: tab === key ? "#3b82f6" : "#ccc",
-              borderBottom: tab === key ? "2px solid #3b82f6" : "none",
-              background: "transparent",
-              textTransform: "uppercase",
-              cursor: "pointer",
-            }}
+            className={`flex-1 py-2 text-sm font-bold uppercase cursor-pointer transition-colors duration-200 ${
+              tab === key ? "text-blue-500 border-b-2 border-blue-500" : "text-gray-400"
+            }`}
           >
             {key}
           </button>
         ))}
       </div>
-      <div style={{ flex: 1 }}>{trees[tab]}</div>
+      <div className="flex-1 overflow-hidden">
+        {trees[tab]}
+      </div>
     </div>
   );
 }

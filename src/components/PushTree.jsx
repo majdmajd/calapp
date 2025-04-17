@@ -141,8 +141,7 @@ const generateFlowData = (skills, unlockedList) => {
 
 export default function PushTree() {
   // Get everything from the store
-  const unlockedSkills = useSkillStore((state) => state.unlockedSkills);
-  const unlocked = unlockedSkills.push;
+  const unlocked = useSkillStore((state) => state.getUnlockedSkills().push);
   const unlockSkill = useSkillStore((state) => state.unlockSkill);
   
   // Modal state
@@ -158,18 +157,7 @@ export default function PushTree() {
   
   // Manual implementation for resetting just the push category
   const resetPushOnly = () => {
-    const currentState = useSkillStore.getState();
-    useSkillStore.setState({
-      ...currentState,
-      xpData: {
-        ...currentState.xpData,
-        push: 0
-      },
-      unlockedSkills: {
-        ...currentState.unlockedSkills,
-        push: []
-      }
-    });
+    useSkillStore.getState().resetAll(); // only resets current user's data
   };
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -208,7 +196,7 @@ export default function PushTree() {
     setSelectedSkill(skill);
 
     const prereqs = skill.requires || [];
-    const allUnlocked = Object.values(unlockedSkills).flat();
+    const allUnlocked = Object.values(useSkillStore.getState().getUnlockedSkills()).flat();
     const lockedPrereqs = prereqs.filter((id) => !allUnlocked.includes(id));
 
     const skillName = skill.fullLabel.replace(/\s*\([^)]*\)/, "");
@@ -260,7 +248,7 @@ export default function PushTree() {
       confirmText: "Unlock",
       cancelText: "Not Yet"
     });
-  }, [unlocked, unlockSkill, unlockedSkills]);
+  }, [unlocked, unlockSkill]);
 
   return (
     <ReactFlowProvider>
