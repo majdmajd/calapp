@@ -9,7 +9,7 @@ export const useSkillStore = create(
       allUserData: {},
 
       unlockSkill: (category, skillId, amount = 5) => {
-        const username = useAuthStore.getState().user?.username;
+        const username = useAuthStore.getState().user?.email;
         if (!username) return;
 
         const userData = get().allUserData[username] || {
@@ -39,7 +39,7 @@ export const useSkillStore = create(
       },
 
       resetAll: () => {
-        const username = useAuthStore.getState().user?.username;
+        const username = useAuthStore.getState().user?.email;
         if (!username) return;
 
         set((state) => ({
@@ -54,12 +54,12 @@ export const useSkillStore = create(
       },
 
       getXpData: () => {
-        const username = useAuthStore.getState().user?.username;
+        const username = useAuthStore.getState().user?.email;
         return get().allUserData[username]?.xpData || { push: 0, pull: 0, core: 0, legs: 0 };
       },
 
       getUnlockedSkills: () => {
-        const username = useAuthStore.getState().user?.username;
+        const username = useAuthStore.getState().user?.email;
         const userData = get().allUserData[username];
 
         if (!userData) {
