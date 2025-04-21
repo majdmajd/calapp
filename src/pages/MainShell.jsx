@@ -3,20 +3,20 @@ import AppShell from "./AppShell";
 import LevelsPage from "./LevelsPage";
 import ProgressPage from "./ProgressPage";
 import ProfilePage from "./ProfilePage";
+import WorkoutTracker from "./WorkoutTracker";
 import BottomNavigation from "../components/BottomNavigation";
 import { useAuthStore } from "../Stores/AuthStore";
 import LoginPage from "./LoginPage";
 
 export default function MainShell() {
   const user = useAuthStore((state) => state.user);
-const isUserReady = user && user.displayName; // ✅ Only continue if username is set
+  const isUserReady = user && user.displayName;
 
   const [tab, setTab] = useState("home");
 
   if (!isUserReady) {
     return <LoginPage onLogin={() => setTab("home")} />;
   }
-  
 
   const renderTab = () => {
     switch (tab) {
@@ -28,6 +28,8 @@ const isUserReady = user && user.displayName; // ✅ Only continue if username i
         return <ProgressPage />;
       case "profile":
         return <ProfilePage />;
+      case "tracker":
+        return <WorkoutTracker />;
       default:
         return <AppShell />;
     }

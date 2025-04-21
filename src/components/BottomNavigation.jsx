@@ -1,11 +1,12 @@
 import React from "react";
-import { FaHome, FaChartLine, FaUser, FaDumbbell } from "react-icons/fa";
+import { FaHome, FaChartLine, FaUser, FaDumbbell, FaRegClipboard } from "react-icons/fa";
 
 export default function BottomNavigation({ currentTab, setTab }) {
   const tabs = [
     { key: "home", icon: <FaDumbbell />, label: "Home" },
     { key: "levels", icon: <FaChartLine />, label: "Levels" },
     { key: "progress", icon: <FaHome />, label: "Progress" },
+    { key: "tracker", icon: <FaRegClipboard />, label: "Tracker" }, // ✅ New tab
     { key: "profile", icon: <FaUser />, label: "Profile" },
   ];
 
