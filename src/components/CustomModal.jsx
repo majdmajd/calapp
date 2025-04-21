@@ -21,6 +21,9 @@ export default function CustomModal({
     width: "90%",
     maxWidth: "500px",
     textAlign: "center",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    whiteSpace: "normal",
   };
 
   return (
@@ -43,22 +46,35 @@ export default function CustomModal({
           </h2>
         )}
 
-        {/* Single-line + Spaced Message */}
+        {/* Centered & well-spaced multiline message */}
         {Array.isArray(message) ? (
-          message.length === 1 ? (
-            <div style={{ whiteSpace: "nowrap", overflowWrap: "normal" }}>{message[0]}</div>
-          ) : (
-            <>
-              <div style={{ marginBottom: "0.75rem" }}>{message[0]}</div>
-              <div style={{ textAlign: "left", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {message.slice(1).map((line, idx) => (
-                  <div key={idx}>{line}</div>
-                ))}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+              gap: "0.75rem",
+              marginBottom: "2rem",
+            }}
+          >
+            {message.map((line, idx) => (
+              <div
+                key={idx}
+                style={{
+                  fontWeight: idx === 0 ? "600" : "normal",
+                  fontSize: idx === 0 ? "1rem" : "0.95rem",
+                  lineHeight: 1.6,
+                  maxWidth: "100%",
+                  wordWrap: "break-word",
+                }}
+              >
+                {line}
               </div>
-            </>
-          )
+            ))}
+          </div>
         ) : (
-          <p style={{ marginBottom: "2.5rem", fontSize: "1rem", lineHeight: "1.8" }}>
+          <p style={{ marginBottom: "2rem", fontSize: "1rem", lineHeight: "1.8" }}>
             {message}
           </p>
         )}

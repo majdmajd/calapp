@@ -4,6 +4,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   sendEmailVerification,
   updateProfile,
@@ -12,7 +14,7 @@ import {
 export const useAuthStore = create((set) => ({
   user: null,
 
-  // 🔵 Signup with email, username, and password
+  // 🔹 Create account with email/password + username
   signup: async (email, username, password) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -20,13 +22,13 @@ export const useAuthStore = create((set) => ({
 
       await updateProfile(user, { displayName: username });
       await sendEmailVerification(user);
-      await signOut(auth); // prevent access until verification
+      await signOut(auth); // require email verification
     } catch (error) {
-      throw error; // send to UI
+      throw error;
     }
   },
 
-  // 🔵 Login with email and password, only if verified
+  // 🔹 Login with email/password (if verified)
   login: async (email, password) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -43,31 +45,42 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  // 🔵 Login with Google
+  // 🔹 Login with Google (popup for desktop, redirect for mobile)
   loginWithGoogle: async () => {
-    try {
-      googleProvider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, googleProvider);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      await signInWithRedirect(auth, googleProvider); // redirect flow
+    } else {
+      const result = await signInWithPopup(auth, googleProvider); // desktop popup
       const user = result.user;
-
-      if (!user.emailVerified) {
-        await signOut(auth);
-        throw new Error("Please verify your Google email before logging in.");
-      }
-
       set({ user });
-    } catch (error) {
-      throw error;
+      return result; // return so LoginPage can check new user
     }
   },
 
-  // 🔵 Logout
+  // 🔹 Get redirect result after Google login on mobile
+  handleRedirectResult: async () => {
+    try {
+      const result = await getRedirectResult(auth);
+      if (result?.user) {
+        set({ user: result.user });
+        return result;
+      }
+      return null;
+    } catch (error) {
+      console.error("Google redirect error:", error);
+      return null;
+    }
+  },
+
+  // 🔹 Logout
   logout: async () => {
     await signOut(auth);
     set({ user: null });
   },
 
-  // 🔵 Resend verification email
+  // 🔹 Resend verification email
   resendVerificationEmail: async () => {
     const user = auth.currentUser;
     if (user && !user.emailVerified) {
@@ -81,6 +94,6 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  // 🔵 Set user manually
+  // 🔹 Set user manually (e.g., after redirect or polling)
   setUser: (user) => set({ user }),
 }));

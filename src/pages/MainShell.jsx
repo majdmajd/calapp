@@ -9,11 +9,14 @@ import LoginPage from "./LoginPage";
 
 export default function MainShell() {
   const user = useAuthStore((state) => state.user);
+const isUserReady = user && user.displayName; // ✅ Only continue if username is set
+
   const [tab, setTab] = useState("home");
 
-  if (!user) {
+  if (!isUserReady) {
     return <LoginPage onLogin={() => setTab("home")} />;
   }
+  
 
   const renderTab = () => {
     switch (tab) {
